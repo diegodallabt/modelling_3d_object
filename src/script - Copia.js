@@ -3,8 +3,9 @@ var ctx = canvas.getContext('2d');
 var pontos = [];
 var raio = 5;
 
-// Objeto 3D
-let object3D = {
+// List of 3D objects
+let objects3D = [{
+    id: 0,
     polygon: {
         vertices: [],
     },
@@ -15,9 +16,29 @@ let object3D = {
     minY: Infinity,
     maxY: 0,
     closed: false
-};
+}];
 
+// Inicializa o primeiro objeto 3D
+initializeNewObject3D();
 drawAxes();
+
+function initializeNewObject3D() {
+    let newObject3D = {
+        id: objects3D.length,
+        polygon: {
+            vertices: [],
+        },
+        intersections: new Map(),
+        revolutionPoints: new Map(),
+        faces: new Map(),
+        faceIntersections: new Map(),
+        minY: Infinity,
+        maxY: 0,
+        closed: false
+    };
+
+    objects3D.push(newObject3D);
+}
 
 function drawAxes() {
     // Desenha a linha no eixo X
@@ -61,12 +82,31 @@ canvas.addEventListener('click', function(event) {
     // Origem no meio do eixo Y
     y -= canvas.height / 2;
 
+    // Get the current object3D
+    var object3D = objects3D[objects3D.length - 1];
+
     if (object3D.closed) {
-        // Limpa o polígono anterior e seus pontos
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = `rgba(0, 0, 0)`;
-        object3D.polygon.vertices = [];
-        object3D.closed = false;
+        // Create a new object3D and push it to the list
+        objects3D.push({
+            id: objects3D.length,
+            polygon: {
+                vertices: [],
+            },
+            intersections: new Map(),
+            revolutionPoints: new Map(),
+            faces: new Map(),
+            faceIntersections: new Map(),
+            minY: Infinity,
+            maxY: 0,
+            closed: false
+        });
+
+        // Get the new current object3D
+        object3D = objects3D[objects3D.length - 1];
+
+        //Clear the previous polygon and its points
+        //ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //ctx.fillStyle = `rgba(0, 0, 0)`;
         drawAxes();
     }
 
@@ -80,7 +120,8 @@ canvas.addEventListener('click', function(event) {
             ctx.moveTo(object3D.polygon.vertices[0].x + canvas.width / 2, canvas.height / 2 - object3D.polygon.vertices[0].y);
             ctx.lineTo(object3D.polygon.vertices[object3D.polygon.vertices.length - 1].x + canvas.width / 2, canvas.height / 2 - object3D.polygon.vertices[object3D.polygon.vertices.length - 1].y);
             ctx.stroke();
-            object3D.closed = true; // Marca o polígono como fechado
+            object3D.closed = true;
+            console.log("ID: ", object3D.id);
             console.log("Polígono fechado:", object3D.polygon.vertices);
 
             object3D.minY = Infinity;
@@ -94,7 +135,6 @@ canvas.addEventListener('click', function(event) {
                 }
             });
             console.log("object3D.minY: ", object3D.minY, "\tobject3D.maxY: ", object3D.maxY);
-
             return;
         }
     }
@@ -128,28 +168,39 @@ function drawPoint(x, y) {
 document.getElementById('resetButton').addEventListener('click', resetCanvas);
 // Função para resetar o canvas
 function resetCanvas() {
-    // Limpa o canvas e redefine as propriedades do objeto 3D
+    // Limpa o canvas inteiramente.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    object3D.polygon.vertices = [];
-    object3D.intersections.clear();
-    object3D.faces.clear();
-    object3D.closed = false;
-    object3D.minY = Infinity;
-    object3D.maxY = 0;
+    // Redesenha os eixos para um canvas limpo.
     drawAxes();
-}
 
-function clearCanvas() {
-    object3D.intersections.clear();
-    object3D.faces.clear();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
+    // Limpa a lista de objetos 3D e inicia um novo objeto com id 0.
+    objects3D = [{
+        id: 0,
+        polygon: {
+            vertices: [],
+        },
+        intersections: new Map(),
+        revolutionPoints: new Map(),
+        faces: new Map(),
+        faceIntersections: new Map(),
+        minY: Infinity,
+        maxY: 0,
+        closed: false
+    }];
 }
 
 document.getElementById('3dButton').addEventListener('click', () => {
-    clearCanvas();
-    const slices = parseInt(document.getElementById('slices').value);
-    createSlices(object3D, slices);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Adapte isto para ser chamado em um contexto apropriado, talvez antes do evento do botão 3D.
+    objects3D.forEach(object3D => {
+        if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+            const slices = parseInt(document.getElementById('slices').value);
+            createSlices(object3D, slices); // Assumindo que esta função configura corretamente as slices e faces.
+        }
+    });
+
+    drawAxes();
+    fillFaces();
 });
 
 function createSlices(object3D, slices) {
@@ -183,15 +234,15 @@ function createSlices(object3D, slices) {
     object3D.revolutionPoints = revolutionPoints;
 
     // Define as interseções entre as arestas do polígono
-    defineFaceIntersections(object3D);
+    //defineFaceIntersections(object3D);
 
 
-    fillPolygon(object3D);
+    //fillPolygon(object3D);
 
     // Cria as faces
-    //createFaces(object3D, slices);
+    createFaces(object3D, slices);
 
-    //fillFaces(object3D);
+    fillFaces(object3D);
 }
 
 function createFaces(object3D, slices) {
@@ -216,23 +267,32 @@ function createFaces(object3D, slices) {
     }
 }
 
+function fillFaces() {
+    // Itera sobre todos os objetos 3D
+    objects3D.forEach((object3D) => {
+        // Verifica se o objeto está fechado
+        if (!object3D.closed) {
+            return;
+        }
 
-function fillFaces(object3D) {
-    const faces = object3D.faces;
-    // Itera sobre todas as faces
-    for (const [key, face] of faces) {
-        // Obtém as coordenadas x e y dos pontos da face
-        const coordinates = face.map(point => {
-            const x = Math.round(point.x + canvas.width / 2);
-            const y = Math.round(canvas.height / 2 - point.y);
-            return { x, y };
-        });
-        // Desenha as bordas da face
-        //drawPolygonBorder(coordinates);
+        const faces = object3D.faces;
+        // Itera sobre todas as faces do objeto atual
+        for (const [key, face] of faces) {
+            // Obtém as coordenadas x e y dos pontos da face
+            const coordinates = face.map(point => {
+                const x = Math.round(point.x + canvas.width / 2);
+                const y = Math.round(canvas.height / 2 - point.y);
+                return { x, y };
+            });
 
-        // Desenha um polígono preenchido com as coordenadas da face
-        //drawFilledPolygon(coordinates);
-    }
+            console.log("COORDENADAS: ", coordinates);
+            // Desenha as bordas da face
+            drawPolygonBorder(coordinates);
+
+            // Desenha um polígono preenchido com as coordenadas da face
+            drawFilledPolygon(coordinates);
+        }
+    });
 }
 
 function drawPolygonBorder(coordinates) {
@@ -255,126 +315,4 @@ function drawFilledPolygon(coordinates) {
     ctx.closePath();
     ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
     ctx.fill();
-}
-
-
-
-
-
-
-function defineIntersections(object3D) {
-    const revolutionPoints = object3D.revolutionPoints;
-    const minY = object3D.minY;
-    const maxY = object3D.maxY;
-
-    // Para cada linha horizontal entre minY e maxY
-    for (let y = minY; y < maxY; y++) {
-        const intersections = []; // Array para armazenar as interseções nesta linha
-
-        // Para cada par de pontos em cada fatia da revolução
-        revolutionPoints.forEach(slice => {
-            for (let i = 0; i < slice.length; i++) {
-                const p1 = slice[i];
-                const p2 = slice[(i + 1) % slice.length]; // Próximo ponto (fechando a fatia)
-
-                // Verifica se a aresta cruza a linha horizontal atual
-                if ((p1.y < y && p2.y >= y) || (p2.y < y && p1.y >= y)) {
-                    // Calcula a interseção com a linha horizontal
-                    const intersectionX = p1.x + (y - p1.y) / (p2.y - p1.y) * (p2.x - p1.x);
-                    // Armazena a coordenada x da interseção e as cores
-                    intersections.push({
-                        x: Math.round(intersectionX), // Arredonde para o inteiro mais próximo
-                        y: y // Salve também a coordenada y da interseção
-                    });
-                }
-            }
-        });
-
-        // Ordena as interseções em ordem crescente
-        intersections.sort((a, b) => a.x - b.x);
-
-        // Adiciona as interseções nesta linha ao objeto3D
-        object3D.intersections.set(y, intersections);
-    }
-}
-
-
-function defineFaceIntersections(object3D) {
-    const faces = object3D.faces;
-    const minY = object3D.minY;
-    const maxY = object3D.maxY;
-
-    // Itera sobre todas as faces
-    for (const [key, face] of faces) {
-        const faceIntersections = [];
-
-        // Obtém as coordenadas x e y dos pontos da face
-        const coordinates = face.map(point => ({ x: point.x, y: point.y }));
-
-        console.log('coordinates', coordinates);
-
-        // Calcula as interseções horizontais para a face
-        for (let y = minY; y < maxY; y++) {
-            const intersections = []; // Array para armazenar as interseções nesta linha
-
-            console.log('intersections', intersections);
-
-            // Para cada par de pontos na borda da face
-            for (let i = 0; i < coordinates.length; i++) {
-                const p1 = coordinates[i];
-                const p2 = coordinates[(i + 1) % coordinates.length]; // Próximo ponto (fechando a face)
-
-                // Verifica se a aresta cruza a linha horizontal atual
-                if ((p1.y < y && p2.y >= y) || (p2.y < y && p1.y >= y)) {
-                    // Calcula a interseção com a linha horizontal
-                    const intersectionX = p1.x + (y - p1.y) / (p2.y - p1.y) * (p2.x - p1.x);
-                    // Armazena a coordenada x da interseção
-                    intersections.push(intersectionX); // Apenas armazena a coordenada x
-                }
-            }
-
-            // Ordena as interseções em ordem crescente
-            intersections.sort((a, b) => a - b);
-
-            // Agrupa as interseções em pares de coordenadas x representando os pontos de interseção
-            for (let i = 0; i < intersections.length; i += 2) {
-                faceIntersections.push([intersections[i], intersections[i + 1]]);
-            }
-        }
-
-        // Salva as interseções da face
-        object3D.faceIntersections.set(key, faceIntersections);
-    }
-}
-
-function fillPolygon(object3D) {
-    const initialY = object3D.minY;
-    const endY = object3D.maxY;
-    const intersections = object3D.faceIntersections;
-
-    for (let currentY = initialY; currentY < endY; currentY++) {
-        const currentEdges = intersections.get(currentY);
-
-        console.log("currentEdges:", currentEdges);
-
-        if (currentEdges) { // Verifica se há arestas nesta linha
-            for (let k = 0; k < currentEdges.length; k += 2) { // Ajuste do passo para 2
-                const startX = currentEdges[k]; // Primeira interseção
-                const endX = currentEdges[k + 1]; // Segunda interseção
-                console.log("startX:", startX, "endX:", endX);
-
-                for (let currentX = startX; currentX < endX; currentX++) {
-                    drawSquare(
-                        currentX,
-                        currentY, { r: 255, g: 0, b: 0, a: 1 }
-                    );
-                }
-            }
-        }
-    }
-}
-
-function drawSquare(x, y, { r, g, b, a }) {
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-    ctx.fillRect(x, y, 1, 1);
 }
