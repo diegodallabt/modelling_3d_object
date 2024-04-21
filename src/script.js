@@ -214,8 +214,8 @@ function createSlices(object3D, slices) {
 
         // Rotaciona os vértices do perfil em torno do eixo Y
         for (let j = 0; j < vertices.length; j++) {
-            const x = vertices[j].x * Math.cos(angle);
-            const z = vertices[j].x;
+            const x = vertices[j].x * Math.cos(angle) - vertices[j].z * Math.sin(angle);
+            const z = vertices[j].x * Math.sin(angle) + vertices[j].z * Math.cos(angle);
             slice.push({ x, y: vertices[j].y, z });
         }
 
@@ -229,8 +229,10 @@ function createSlices(object3D, slices) {
     // Cria as faces
     createFaces(object3D, slices);
 
+    // Esteja certo de que fillFaces está recebendo e tratando os dados corretamente
     fillFaces(object3D);
 }
+
 
 function createFaces(object3D, slices) {
     const revolutionPoints = object3D.revolutionPoints;
@@ -310,16 +312,16 @@ function applyScale(scaleFactor) {
         if (!object3D.closed) {
             return;
         }
-        // Atualiza cada vértice do objeto
-        for (let slice of object3D.revolutionPoints.values()) {
-            for (let point of slice) {
-                point.x *= scaleFactor;
-                point.y *= scaleFactor;
-                point.z *= scaleFactor;
-            }
-        }
-        // Recria as faces após a transformação de escala
-        createFaces(object3D, object3D.revolutionPoints.size);
+        // Atualiza cada vértice do polígono do objeto
+        object3D.polygon.vertices.forEach(point => {
+            point.x *= scaleFactor;
+            point.y *= scaleFactor;
+            point.z *= scaleFactor;
+        });
+
+        // Recria as slices após a transformação de escala
+        createSlices(object3D, parseInt(document.getElementById('slices').value));
+        // Redesenha as faces após a escala
         fillFaces();
     });
 }
@@ -332,67 +334,13 @@ document.getElementById('scale').addEventListener('input', function(event) {
     applyScale(parseFloat(event.target.value));
 });
 
-// Função para aplicar rotação ao objeto 3D
-function applyRotation(rotationDegrees) {
-    objects3D.forEach(object3D => {
-        if (!object3D.closed) {
-            return;
-        }
-        // Converte graus para radianos
-        const radians = rotationDegrees * (Math.PI / 180);
-        // Atualiza cada vértice do objeto para a rotação
-        for (let slice of object3D.revolutionPoints.values()) {
-            for (let point of slice) {
-                // Aplica rotação em torno do eixo Y, por exemplo
-                const x = point.x;
-                const z = point.z;
-                point.x = x * Math.cos(radians) - z * Math.sin(radians);
-                point.z = x * Math.sin(radians) + z * Math.cos(radians);
-            }
-        }
-        // Chama createSlices para redesenhar os pontos com a rotação correta
-        createSlices(object3D, object3D.revolutionPoints.size);
-    });
-}
-
-
-
 document.getElementById('rotationY').addEventListener('input', function(event) {
     // Limpa o canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawAxes();
     // Chama applyRotation com o valor atual do input como graus de rotação
-    applyRotation(parseFloat(event.target.value));
+    applyRotationY(parseFloat(event.target.value));
 });
-
-// Função para aplicar rotação no eixo X ao objeto 3D
-function applyRotationX(rotationDegrees) {
-    objects3D.forEach(object3D => {
-        if (!object3D.closed) {
-            return;
-        }
-        // Converte graus para radianos
-        const radians = rotationDegrees * (Math.PI / 180);
-        // Atualiza cada vértice do objeto para a rotação no eixo X
-        for (let slice of object3D.revolutionPoints.values()) {
-            for (let point of slice) {
-                // Aplica rotação em torno do eixo X
-                const y = point.y;
-                const z = point.z;
-                point.y = y * Math.cos(radians) + z * Math.sin(radians);
-                point.z = -y * Math.sin(radians) + z * Math.cos(radians);
-            }
-        }
-        // Recria as slices e faces após a transformação de rotação
-        createSlices(object3D, object3D.revolutionPoints.size);
-    });
-
-    // Redesenha o canvas após a rotação
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    fillFaces();
-}
-
 
 document.getElementById('rotationX').addEventListener('input', function(event) {
     // Limpa o canvas
@@ -401,3 +349,52 @@ document.getElementById('rotationX').addEventListener('input', function(event) {
     // Chama applyRotationX com o valor atual do input como graus de rotação
     applyRotationX(parseFloat(event.target.value));
 });
+
+// Função para aplicar rotação em Y e atualizar o polígono
+function rotateAndUpdateY(object3D, radians) {
+    object3D.polygon.vertices.forEach(point => {
+        const oldX = point.x;
+        const oldZ = point.z;
+        point.x = oldX * Math.cos(radians) + oldZ * Math.sin(radians);
+        point.z = -oldX * Math.sin(radians) + oldZ * Math.cos(radians);
+    });
+}
+
+// Função para aplicar rotação em X e atualizar o polígono
+function rotateAndUpdateX(object3D, radians) {
+    object3D.polygon.vertices.forEach(point => {
+        const oldY = point.y;
+        const oldZ = point.z;
+        point.y = oldY * Math.cos(radians) - oldZ * Math.sin(radians);
+        point.z = oldY * Math.sin(radians) + oldZ * Math.cos(radians);
+    });
+}
+
+// Atualiza a rotação e redesenha para rotação em Y
+function applyRotationY(rotationDegrees) {
+    const radians = rotationDegrees * (Math.PI / 180);
+    objects3D.forEach(object3D => {
+        if (!object3D.closed) return;
+        rotateAndUpdateY(object3D, radians);
+        createSlices(object3D, parseInt(document.getElementById('slices').value));
+    });
+    redrawCanvas();
+}
+
+// Atualiza a rotação e redesenha para rotação em X
+function applyRotationX(rotationDegrees) {
+    const radians = rotationDegrees * (Math.PI / 180);
+    objects3D.forEach(object3D => {
+        if (!object3D.closed) return;
+        rotateAndUpdateX(object3D, radians);
+        createSlices(object3D, parseInt(document.getElementById('slices').value));
+    });
+    redrawCanvas();
+}
+
+// Redesenha o canvas, incluindo eixos e faces
+function redrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawAxes();
+    fillFaces();
+}
