@@ -90,6 +90,7 @@ canvas.addEventListener('click', function(event) {
             polygon: {
                 vertices: [],
             },
+
             revolutionPoints: new Map(),
             faces: new Map(),
             faceIntersections: new Map(),
@@ -101,6 +102,9 @@ canvas.addEventListener('click', function(event) {
         // Get the new current object3D
         object3D = objects3D[objects3D.length - 1];
 
+        //Clear the previous polygon and its points
+        //ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //ctx.fillStyle = `rgba(0, 0, 0)`;
         drawAxes();
     }
 
@@ -173,6 +177,7 @@ function resetCanvas() {
         polygon: {
             vertices: [],
         },
+
         revolutionPoints: new Map(),
         faces: new Map(),
         faceIntersections: new Map(),
@@ -193,7 +198,7 @@ document.getElementById('3dButton').addEventListener('click', () => {
     });
 
     drawAxes();
-    fillFaces();
+    zBufferAlgorithm();
 });
 
 function createSlices(object3D, slices) {
@@ -229,18 +234,95 @@ function createSlices(object3D, slices) {
     // Cria as faces
     createFaces(object3D, slices);
 
-    fillFaces(object3D);
+    zBufferAlgorithm();
+}
+
+/**
+ * Calculate and store intersections between a new face and existing faces.
+ * Store intersections bidirectionally for easy lookup.
+ */
+function calculateAndStoreIntersections(object3D, newFaceId, newFace) {
+    object3D.faces.forEach((existingFace, existingFaceId) => {
+        if (newFaceId !== existingFaceId) {
+            const intersection = findFaceIntersection(newFace, existingFace);
+            if (intersection) {
+                const key = `${newFaceId}-${existingFaceId}`;
+                object3D.faceIntersections.set(key, intersection);
+                object3D.faceIntersections.set(`${existingFaceId}-${newFaceId}`, intersection);
+            }
+        }
+    });
+}
+
+/**
+ * Determine if two faces intersect and return details about the intersection.
+ */
+function findFaceIntersection(face1, face2) {
+    const normal1 = calculateNormal(face1[0], face1[1], face1[2]);
+    const normal2 = calculateNormal(face2[0], face2[1], face2[2]);
+
+    if (areParallel(normal1, normal2)) {
+        return null; // No intersection if normals are parallel
+    }
+
+    const line = findPlaneIntersectionLine(normal1, face1[0], normal2, face2[0]);
+    if (!line) return null;
+
+    return checkLineIntersectionWithFaces(line, face1, face2);
+}
+
+/**
+ * Calculate the normal vector of a face given three points.
+ */
+function calculateNormal(p1, p2, p3) {
+    const v1 = { x: p2.x - p1.x, y: p2.y - p1.y, z: p2.z - p1.z };
+    const v2 = { x: p3.x - p2.x, y: p3.y - p2.y, z: p3.z - p2.z };
+    return {
+        x: v1.y * v2.z - v1.z * v2.y,
+        y: v1.z * v2.x - v1.x * v2.z,
+        z: v1.x * v2.y - v1.y * v2.x
+    };
+}
+
+/**
+ * Determine if two normals are parallel.
+ */
+function areParallel(normal1, normal2) {
+    const dotProduct = normal1.x * normal2.x + normal1.y * normal2.y + normal1.z * normal2.z;
+    const norms = Math.sqrt((normal1.x ** 2 + normal1.y ** 2 + normal1.z ** 2) * (normal2.x ** 2 + normal2.y ** 2 + normal2.z ** 2));
+    return Math.abs(dotProduct / norms - 1) < 0.0001;
+}
+
+/**
+ * Calculate intersection line of two planes defined by their normals and a point on each plane.
+ */
+function findPlaneIntersectionLine(normal1, point1, normal2, point2) {
+    const direction = {
+        x: normal1.y * normal2.z - normal1.z * normal2.y,
+        y: normal1.z * normal2.x - normal1.x * normal2.z,
+        z: normal1.x * normal2.y - normal1.y * normal2.x
+    };
+    // Simplification: Assume intersection line passes through point1
+    return { point: point1, direction };
+}
+
+/**
+ * Check if the intersection line between two planes intersects with the polygonal faces defined by them.
+ */
+function checkLineIntersectionWithFaces(line, face1, face2) {
+    // This is a placeholder. Properly checking line-face intersection requires complex geometry calculations.
+    // Here we assume they intersect if an intersection line exists.
+    return { x: line.point.x, y: line.point.y, z: line.point.z };
 }
 
 function createFaces(object3D, slices) {
     const revolutionPoints = object3D.revolutionPoints;
-
+    //console.log("Revolution Points: ", revolutionPoints);
     // Itera sobre cada slice para criar as faces
     for (let i = 0; i < slices; i++) {
         const currentSlice = revolutionPoints.get(i);
         const nextSlice = revolutionPoints.get((i + 1) % slices); // Próxima fatia (fechando a revolução)
 
-        // Itera sobre os pontos da fatia atual para criar as faces
         for (let j = 0; j < currentSlice.length - 1; j++) {
             const point1 = currentSlice[j];
             const point2 = currentSlice[j + 1];
@@ -249,155 +331,115 @@ function createFaces(object3D, slices) {
 
             // Cria uma face com os quatro pontos
             const face = [point1, point2, point4, point3]; // Sentido anti-horário
-            object3D.faces.set(`Face${i}_${j}`, face);
+            const faceId = `Face${i}_${j}`;
+            object3D.faces.set(faceId, face);
+
+            // Após criar a face, calcula as interseções com todas as outras faces já criadas
+            calculateAndStoreIntersections(object3D, faceId, face);
+
+            console.log("FaceIntersection: ", object3D.faceIntersections);
         }
     }
 }
 
-function fillFaces() {
-    // Itera sobre todos os objetos 3D
+function initializeZBuffer() {
+    let zBuffer = new Array(canvas.width);
+    for (let i = 0; i < canvas.width; i++) {
+        zBuffer[i] = new Array(canvas.height).fill(Infinity);
+    }
+    return zBuffer;
+}
+
+function zBufferAlgorithm() {
+    let zBuffer = initializeZBuffer();
+
     objects3D.forEach((object3D) => {
-        // Verifica se o objeto está fechado
-        if (!object3D.closed) {
-            return;
-        }
+        if (!object3D.closed) return;
 
-        const faces = object3D.faces;
-        // Itera sobre todas as faces do objeto atual
-        for (const [key, face] of faces) {
-            // Obtém as coordenadas x e y dos pontos da face
-            const coordinates = face.map(point => {
-                const x = Math.round(point.x + canvas.width / 2);
-                const y = Math.round(canvas.height / 2 - point.y);
-                return { x, y };
+        object3D.faces.forEach((face, faceId) => {
+            face.forEach((point, index) => {
+                const nextPoint = face[(index + 1) % face.length];
+                // Custom function to draw line considering intersections
+                bresenhamLineWithIntersections(point.x, point.y, point.z, nextPoint.x, nextPoint.y, nextPoint.z, zBuffer, faceId, object3D);
             });
-
-            console.log("COORDENADAS: ", coordinates);
-            // Desenha as bordas da face
-            drawPolygonBorder(coordinates);
-
-            // Desenha um polígono preenchido com as coordenadas da face
-            drawFilledPolygon(coordinates);
-        }
+        });
     });
 }
 
-function drawPolygonBorder(coordinates) {
-    ctx.beginPath();
-    ctx.moveTo(coordinates[0].x, coordinates[0].y);
-    for (let i = 1; i < coordinates.length; i++) {
-        ctx.lineTo(coordinates[i].x, coordinates[i].y);
+
+function bresenhamLineWithIntersections(x0, y0, z0, x1, y1, z1, zBuffer, faceId, object3D) {
+    let dx = Math.abs(x1 - x0);
+    let sx = x0 < x1 ? 1 : -1;
+    let dy = -Math.abs(y1 - y0);
+    let sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    let e2;
+
+    while (true) {
+        if (x0 < 0 || x0 >= canvas.width || y0 < 0 || y0 >= canvas.height) break;
+        // Check if current pixel has intersections and decide which face to render based on your rule
+        let shouldRender = true;
+        if (object3D.faceIntersections.size > 0) {
+            shouldRender = checkIntersectionPriority(x0, y0, faceId, object3D);
+        }
+
+        if (shouldRender && z0 < zBuffer[x0][y0]) {
+            zBuffer[x0][y0] = z0;
+            ctx.fillRect(x0, y0, 1, 1);
+        }
+
+        if (x0 === x1 && y0 === y1) break;
+        e2 = 2 * err;
+        if (e2 > dx) {
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 < dy) {
+            err += dx;
+            y0 += sy;
+        }
     }
-    ctx.closePath();
-    ctx.strokeStyle = 'rgba(0, 0, 255, 1)';
-    ctx.stroke();
 }
 
-function drawFilledPolygon(coordinates) {
-    ctx.beginPath();
-    ctx.moveTo(coordinates[0].x, coordinates[0].y);
-    for (let i = 1; i < coordinates.length; i++) {
-        ctx.lineTo(coordinates[i].x, coordinates[i].y);
+function checkIntersectionPriority(x, y, currentFaceId, object3D, zBuffer) {
+    // Verifica se as coordenadas estão dentro dos limites da tela
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) {
+        console.error("Coordinates out of bounds:", x, y);
+        return false;
     }
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-    ctx.fill();
-}
 
-// Função para aplicar escala ao objeto 3D
-function applyScale(scaleFactor) {
-    objects3D.forEach(object3D => {
-        if (!object3D.closed) {
-            return;
-        }
-        // Atualiza cada vértice do objeto
-        for (let slice of object3D.revolutionPoints.values()) {
-            for (let point of slice) {
-                point.x *= scaleFactor;
-                point.y *= scaleFactor;
-                point.z *= scaleFactor;
+    // Assume a prioridade mais alta até que se prove o contrário
+    let highestPriority = true;
+    let currentFaceZ = zBuffer[x][y];
+
+    // Verifica se o valor do zBuffer está definido
+    if (typeof currentFaceZ === 'undefined') {
+        console.error("Z-buffer value is undefined at:", x, y);
+        return false;
+    }
+
+    // Verifica todas as interseções envolvendo o faceId atual
+    object3D.faceIntersections.forEach((intersection, key) => {
+        let [face1Id, face2Id] = key.split('-');
+        if (face1Id === currentFaceId || face2Id === currentFaceId) {
+            let otherFaceId = (face1Id === currentFaceId) ? face2Id : face1Id;
+            let otherFace = object3D.faces.get(otherFaceId);
+            if (otherFace && otherFace.some(point => calculateZDepthAtPixel(x, y, point) < currentFaceZ)) {
+                highestPriority = false;
             }
         }
-        // Recria as faces após a transformação de escala
-        createFaces(object3D, object3D.revolutionPoints.size);
-        fillFaces();
-    });
-}
-
-document.getElementById('scale').addEventListener('input', function(event) {
-    // Limpa o canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    // Chama applyScale com o valor atual do input como fator de escala
-    applyScale(parseFloat(event.target.value));
-});
-
-// Função para aplicar rotação ao objeto 3D
-function applyRotation(rotationDegrees) {
-    objects3D.forEach(object3D => {
-        if (!object3D.closed) {
-            return;
-        }
-        // Converte graus para radianos
-        const radians = rotationDegrees * (Math.PI / 180);
-        // Atualiza cada vértice do objeto para a rotação
-        for (let slice of object3D.revolutionPoints.values()) {
-            for (let point of slice) {
-                // Aplica rotação em torno do eixo Y, por exemplo
-                const x = point.x;
-                const z = point.z;
-                point.x = x * Math.cos(radians) - z * Math.sin(radians);
-                point.z = x * Math.sin(radians) + z * Math.cos(radians);
-            }
-        }
-        // Chama createSlices para redesenhar os pontos com a rotação correta
-        createSlices(object3D, object3D.revolutionPoints.size);
-    });
-}
-
-
-
-document.getElementById('rotationY').addEventListener('input', function(event) {
-    // Limpa o canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    // Chama applyRotation com o valor atual do input como graus de rotação
-    applyRotation(parseFloat(event.target.value));
-});
-
-// Função para aplicar rotação no eixo X ao objeto 3D
-function applyRotationX(rotationDegrees) {
-    objects3D.forEach(object3D => {
-        if (!object3D.closed) {
-            return;
-        }
-        // Converte graus para radianos
-        const radians = rotationDegrees * (Math.PI / 180);
-        // Atualiza cada vértice do objeto para a rotação no eixo X
-        for (let slice of object3D.revolutionPoints.values()) {
-            for (let point of slice) {
-                // Aplica rotação em torno do eixo X
-                const y = point.y;
-                const z = point.z;
-                point.y = y * Math.cos(radians) + z * Math.sin(radians);
-                point.z = -y * Math.sin(radians) + z * Math.cos(radians);
-            }
-        }
-        // Recria as slices e faces após a transformação de rotação
-        createSlices(object3D, object3D.revolutionPoints.size);
     });
 
-    // Redesenha o canvas após a rotação
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    fillFaces();
+    return highestPriority;
 }
 
+function calculateZDepthAtPixel(x, y, face) {
+    // Make sure the face data is defined and has vertices
+    if (!face || !face.length) {
+        console.log('Face data is invalid or undefined:', face);
+        return Infinity; // Return a default value that won't affect rendering negatively
+    }
 
-document.getElementById('rotationX').addEventListener('input', function(event) {
-    // Limpa o canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    // Chama applyRotationX com o valor atual do input como graus de rotação
-    applyRotationX(parseFloat(event.target.value));
-});
+    let zValues = face.map(point => point.z);
+    return Math.min(...zValues);
+}
