@@ -355,7 +355,7 @@ function redrawCanvas() {
     fillFaces();
 }
 
-var VRP = { x: -20, y: -20, z: 200 }; // Exemplo: a câmera está olhando para a origem do SRC
+var VRP = { x: 0, y: 0, z: 200 }; // Exemplo: a câmera está olhando para a origem do SRC
 var VPN = { x: 0, y: 0, z: -1 }; // Apontando para o negativo no eixo z (para a cena)
 var VUP = { x: 0, y: -1, z: 0 }; // 'Up' está no eixo y positivo
 
