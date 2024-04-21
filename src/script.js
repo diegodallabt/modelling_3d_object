@@ -182,21 +182,6 @@ function resetCanvas() {
     }];
 }
 
-// document.getElementById('3dButton').addEventListener('click', () => {
-//     ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpa o canvas
-//     drawAxes(); // Redesenha os eixos
-
-//     const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
-
-//     objects3D.forEach(object3D => {
-//         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-//             createSlices(object3D, slices); // Chama createSlices com o novo número de slices
-//         }
-//     });
-
-//     fillFaces(); // Desenha as faces com as novas slices
-// });
-
 function createSlices(object3D, slices) {
     // Verifica se há vértices suficientes para criar o polígono
     if (object3D.polygon.vertices.length < 2) {
@@ -370,7 +355,7 @@ function redrawCanvas() {
     fillFaces();
 }
 
-var VRP = { x: 0, y: 0, z: 200 }; // Exemplo: a câmera está olhando para a origem do SRC
+var VRP = { x: -20, y: -20, z: 200 }; // Exemplo: a câmera está olhando para a origem do SRC
 var VPN = { x: 0, y: 0, z: -1 }; // Apontando para o negativo no eixo z (para a cena)
 var VUP = { x: 0, y: -1, z: 0 }; // 'Up' está no eixo y positivo
 
@@ -507,4 +492,50 @@ document.getElementById('3dButton').addEventListener('click', () => {
             transformAndDraw(object3D, viewMatrix, projectionMatrix);
         }
     });
+});
+
+
+
+
+document.getElementById('3dCube').addEventListener('click', function() {
+    var cubePoints = [
+        { x: 60, y: 60, z: 0 },
+        { x: 30, y: 60, z: 0 },
+        { x: 30, y: 30, z: 0 },
+        { x: 60, y: 30, z: 0 },
+        { x: 60, y: 60, z: 0 },
+        { x: 30, y: 60, z: 0 },
+        { x: 30, y: 30, z: 0 },
+        { x: 60, y: 30, z: 0 }
+    ];
+
+    // Cria um novo objeto3D e adiciona à lista
+    objects3D.push({
+        id: objects3D.length,
+        polygon: {
+            vertices: cubePoints,
+        },
+        revolutionPoints: new Map(),
+        faces: new Map(),
+        faceIntersections: new Map(),
+        minY: Infinity,
+        maxY: 0,
+        closed: true
+    });
+
+    // Obtém o objeto3D atual
+    var object3D = objects3D[objects3D.length - 1];
+
+    drawAxes();
+
+    const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+
+    // Criação das matrizes de visualização e projeção
+    const viewMatrix = lookAt(VRP, VPN, VUP);
+    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+
+    if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+        createSlices(object3D, slices);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix);
+    }
 });
