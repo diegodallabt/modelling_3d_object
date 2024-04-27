@@ -3,6 +3,9 @@ var ctx = canvas.getContext('2d');
 var pontos = [];
 var raio = 5;
 
+//Diminui o tamanho da width para o SRT em 400, posição dos botões de transformações e rotações
+var ajustWidth = 400;
+
 // List of 3D objects
 let objects3D = [{
     id: 0,
@@ -247,12 +250,9 @@ document.getElementById('scale').addEventListener('input', function(event) {
 function applyScale(scaleFactor) {
     const slices = parseInt(document.getElementById('slices').value);
 
-    const canvasWidth = window.innerWidth;
-    const canvasHeight = window.innerHeight;
-
     // Ajusta o tamanho do canvas
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    canvas.width = window.innerWidth - ajustWidth;
+    canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
@@ -274,10 +274,9 @@ function applyScale(scaleFactor) {
         // Redesenha as faces após a escala
         createFaces(object3D, slices);
         // Transforma e desenha o objeto após a escala
-        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvas.width, canvas.height);
     });
 }
-
 
 document.getElementById('rotationY').addEventListener('input', function(event) {
     // Limpa o canvas
@@ -319,12 +318,9 @@ function rotateAndUpdateX(object3D, radians) {
 function applyRotationX(rotationDegrees) {
     const slices = parseInt(document.getElementById('slices').value);
 
-    const canvasWidth = window.innerWidth;
-    const canvasHeight = window.innerHeight;
-
     // Ajusta o tamanho do canvas
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    canvas.width = window.innerWidth - ajustWidth;
+    canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
@@ -336,7 +332,7 @@ function applyRotationX(rotationDegrees) {
         rotateAndUpdateX(object3D, radians);
         createSlices(object3D, slices);
         createFaces(object3D, slices);
-        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvas.width, canvas.height);
     });
 }
 
@@ -344,12 +340,9 @@ function applyRotationX(rotationDegrees) {
 function applyRotationY(rotationDegrees) {
     const slices = parseInt(document.getElementById('slices').value);
 
-    const canvasWidth = window.innerWidth;
-    const canvasHeight = window.innerHeight;
-
     // Ajusta o tamanho do canvas
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    canvas.width = window.innerWidth - ajustWidth;
+    canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
@@ -361,7 +354,7 @@ function applyRotationY(rotationDegrees) {
         rotateAndUpdateY(object3D, radians);
         createSlices(object3D, slices);
         createFaces(object3D, slices);
-        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvas.width, canvas.height);
     });
 }
 
@@ -448,25 +441,6 @@ function multiplyMatrixAndPoint(matrix, point) {
     return result;
 }
 
-// function transformAndDraw(object3D, viewMatrix, projectionMatrix) {
-//     console.log("chegou aqui");
-//     object3D.faces.forEach(face => {
-//         const screenCoordinates = [];
-//         face.forEach(point => {
-//             let transformedPoint = multiplyMatrixAndPoint(viewMatrix, point);
-//             transformedPoint = multiplyMatrixAndPoint(projectionMatrix, transformedPoint);
-
-//             let screenX = transformedPoint.x * canvas.width / 2 + canvas.width / 2;
-//             let screenY = -transformedPoint.y * canvas.height / 2 + canvas.height / 2;
-
-//             screenCoordinates.push({ screenX, screenY });
-//         });
-//         console.log("nao esta chegando aqui");
-//         drawPolygon(screenCoordinates);
-//         //drawPoints(screenCoordinates);
-//     });
-// }
-
 function transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight) {
     object3D.faces.forEach((face, index) => {
         const screenCoordinates = face.map(point => {
@@ -504,28 +478,10 @@ function drawPoints(coordinates) {
     });
 }
 
-// document.getElementById('3dButton').addEventListener('click', () => {
-//     ctx.clearRect(0, 0, canvas.width, canvas.height);
-//     drawAxes();
-
-//     const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
-
-//     // Criação das matrizes de visualização e projeção
-//     const viewMatrix = lookAt(VRP, VPN, VUP);
-//     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
-
-//     objects3D.forEach(object3D => {
-//         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-//             createSlices(object3D, slices);
-//             transformAndDraw(object3D, viewMatrix, projectionMatrix);
-//         }
-//     });
-// });
-
 document.getElementById('3dButton').addEventListener('click', () => {
     const slices = parseInt(document.getElementById('slices').value);
 
-    const canvasWidth = window.innerWidth;
+    const canvasWidth = window.innerWidth - 400;
     const canvasHeight = window.innerHeight;
 
     // Ajusta o tamanho do canvas
@@ -543,9 +499,6 @@ document.getElementById('3dButton').addEventListener('click', () => {
         }
     });
 });
-
-
-
 
 document.getElementById('3dCube').addEventListener('click', function() {
     var cubePoints = [
@@ -581,7 +534,7 @@ document.getElementById('3dCube').addEventListener('click', function() {
     const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
 
     // Ajusta o tamanho do canvas
-    canvas.width = window.innerWidth;
+    canvas.width = window.innerWidth - ajustWidth;
     canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
