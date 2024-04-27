@@ -208,17 +208,10 @@ function createSlices(object3D, slices) {
         // Adiciona a fatia atual aos pontos da revolução
         revolutionPoints.set(i, slice);
     }
-
     // Salva os revolutionPoints no object3D
     object3D.revolutionPoints = revolutionPoints;
-
-    // Cria as faces
     createFaces(object3D, slices);
-
-    // Esteja certo de que fillFaces está recebendo e tratando os dados corretamente
-    //fillFaces(object3D);
 }
-
 
 function createFaces(object3D, slices) {
     const revolutionPoints = object3D.revolutionPoints;
@@ -252,7 +245,15 @@ document.getElementById('scale').addEventListener('input', function(event) {
 
 // Função para aplicar escala ao objeto 3D
 function applyScale(scaleFactor) {
-    const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+    const slices = parseInt(document.getElementById('slices').value);
+
+    const canvasWidth = window.innerWidth;
+    const canvasHeight = window.innerHeight;
+
+    // Ajusta o tamanho do canvas
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
@@ -273,7 +274,7 @@ function applyScale(scaleFactor) {
         // Redesenha as faces após a escala
         createFaces(object3D, slices);
         // Transforma e desenha o objeto após a escala
-        transformAndDraw(object3D, viewMatrix, projectionMatrix);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
     });
 }
 
@@ -316,7 +317,15 @@ function rotateAndUpdateX(object3D, radians) {
 
 // Atualiza a rotação e redesenha para rotação em X
 function applyRotationX(rotationDegrees) {
-    const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+    const slices = parseInt(document.getElementById('slices').value);
+
+    const canvasWidth = window.innerWidth;
+    const canvasHeight = window.innerHeight;
+
+    // Ajusta o tamanho do canvas
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
@@ -327,13 +336,21 @@ function applyRotationX(rotationDegrees) {
         rotateAndUpdateX(object3D, radians);
         createSlices(object3D, slices);
         createFaces(object3D, slices);
-        transformAndDraw(object3D, viewMatrix, projectionMatrix);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
     });
 }
 
 // Atualiza a rotação e redesenha para rotação em Y
 function applyRotationY(rotationDegrees) {
-    const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+    const slices = parseInt(document.getElementById('slices').value);
+
+    const canvasWidth = window.innerWidth;
+    const canvasHeight = window.innerHeight;
+
+    // Ajusta o tamanho do canvas
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
@@ -344,7 +361,7 @@ function applyRotationY(rotationDegrees) {
         rotateAndUpdateY(object3D, radians);
         createSlices(object3D, slices);
         createFaces(object3D, slices);
-        transformAndDraw(object3D, viewMatrix, projectionMatrix);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
     });
 }
 
@@ -355,7 +372,7 @@ function redrawCanvas() {
     fillFaces();
 }
 
-var VRP = { x: 0, y: 0, z: 200 }; // Exemplo: a câmera está olhando para a origem do SRC
+var VRP = { x: 0, y: 0, z: 250 }; // Exemplo: a câmera está olhando para a origem do SRC
 var VPN = { x: 0, y: 0, z: -1 }; // Apontando para o negativo no eixo z (para a cena)
 var VUP = { x: 0, y: -1, z: 0 }; // 'Up' está no eixo y positivo
 
@@ -431,25 +448,36 @@ function multiplyMatrixAndPoint(matrix, point) {
     return result;
 }
 
-function transformAndDraw(object3D, viewMatrix, projectionMatrix) {
-    console.log("chegou aqui");
-    object3D.faces.forEach(face => {
-        const screenCoordinates = [];
-        face.forEach(point => {
+// function transformAndDraw(object3D, viewMatrix, projectionMatrix) {
+//     console.log("chegou aqui");
+//     object3D.faces.forEach(face => {
+//         const screenCoordinates = [];
+//         face.forEach(point => {
+//             let transformedPoint = multiplyMatrixAndPoint(viewMatrix, point);
+//             transformedPoint = multiplyMatrixAndPoint(projectionMatrix, transformedPoint);
+
+//             let screenX = transformedPoint.x * canvas.width / 2 + canvas.width / 2;
+//             let screenY = -transformedPoint.y * canvas.height / 2 + canvas.height / 2;
+
+//             screenCoordinates.push({ screenX, screenY });
+//         });
+//         console.log("nao esta chegando aqui");
+//         drawPolygon(screenCoordinates);
+//         //drawPoints(screenCoordinates);
+//     });
+// }
+
+function transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight) {
+    object3D.faces.forEach((face, index) => {
+        const screenCoordinates = face.map(point => {
             let transformedPoint = multiplyMatrixAndPoint(viewMatrix, point);
             transformedPoint = multiplyMatrixAndPoint(projectionMatrix, transformedPoint);
-
-            let screenX = transformedPoint.x * canvas.width / 2 + canvas.width / 2;
-            let screenY = -transformedPoint.y * canvas.height / 2 + canvas.height / 2;
-
-            screenCoordinates.push({ screenX, screenY });
+            let viewportPoint = viewportTransform(transformedPoint, canvasWidth, canvasHeight);
+            return viewportPoint;
         });
-        console.log("nao esta chegando aqui");
         drawPolygon(screenCoordinates);
-        //drawPoints(screenCoordinates);
     });
 }
-
 
 function drawPolygon(coordinates) {
 
@@ -471,25 +499,47 @@ function drawPoints(coordinates) {
     coordinates.forEach(point => {
         ctx.beginPath();
         ctx.arc(point.screenX, point.screenY, raio, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+        ctx.fillStyle = 'rgba(0, 255, 0, 1)';
         ctx.fill();
     });
 }
 
+// document.getElementById('3dButton').addEventListener('click', () => {
+//     ctx.clearRect(0, 0, canvas.width, canvas.height);
+//     drawAxes();
+
+//     const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+
+//     // Criação das matrizes de visualização e projeção
+//     const viewMatrix = lookAt(VRP, VPN, VUP);
+//     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+
+//     objects3D.forEach(object3D => {
+//         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+//             createSlices(object3D, slices);
+//             transformAndDraw(object3D, viewMatrix, projectionMatrix);
+//         }
+//     });
+// });
+
 document.getElementById('3dButton').addEventListener('click', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
+    const slices = parseInt(document.getElementById('slices').value);
 
-    const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+    const canvasWidth = window.innerWidth;
+    const canvasHeight = window.innerHeight;
 
-    // Criação das matrizes de visualização e projeção
+    // Ajusta o tamanho do canvas
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // Restante do código para criar matrizes e chamar transformAndDraw
     const viewMatrix = lookAt(VRP, VPN, VUP);
-    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+    const projectionMatrix = perspective(Math.PI / 2, canvasWidth / canvasHeight, 1, 100);
 
     objects3D.forEach(object3D => {
         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
             createSlices(object3D, slices);
-            transformAndDraw(object3D, viewMatrix, projectionMatrix);
+            transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight);
         }
     });
 });
@@ -530,12 +580,37 @@ document.getElementById('3dCube').addEventListener('click', function() {
 
     const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
 
+    // Ajusta o tamanho do canvas
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
     // Criação das matrizes de visualização e projeção
     const viewMatrix = lookAt(VRP, VPN, VUP);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
 
     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
         createSlices(object3D, slices);
-        transformAndDraw(object3D, viewMatrix, projectionMatrix);
+        transformAndDraw(object3D, viewMatrix, projectionMatrix, canvas.width, canvas.height);
     }
 });
+
+//#################################################################################
+// SRT
+//#################################################################################
+
+function viewportTransform(point, canvasWidth, canvasHeight) {
+    // Limites da tela (pode ajustar conforme necessário)
+    const Umin = 0, Umax = canvasWidth, Vmin = 0, Vmax = canvasHeight;
+
+    // Escala e translação
+    const scaleX = (Umax - Umin) / 2;
+    const scaleY = (Vmax - Vmin) / 2;
+    const translateX = (Umax + Umin) / 2;
+    const translateY = (Vmax + Vmin) / 2;
+
+    // Transformação de viewport
+    return {
+        screenX: point.x * scaleX + translateX,
+        screenY: -point.y * scaleY + translateY // Inverte Y para correspondência de coordenadas do canvas
+    };
+}
