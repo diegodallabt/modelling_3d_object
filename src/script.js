@@ -6,8 +6,8 @@ var raio = 5;
 //Diminui o tamanho da width para o SRT em 400, posição dos botões de transformações e rotações
 var ajustWidth = 400;
 var Xmin = 0, Xmax = 600, Ymin = 0, Ymax = 600;
-var Umin = 0, Umax = 600, Vmin = 0, Vmax = 600;
-//var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight;
+//var Umin = 0, Umax = 600, Vmin = 0, Vmax = 600;
+var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight;
 
 // List of 3D objects
 let objects3D = [{
@@ -476,7 +476,7 @@ function multiplyMatrix4x1(a, b) {
     return result;
 }
 
-function createPerspectiveMatrix(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax) {
+function createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax) {
     let Sx = (Umax - Umin) / (Xmax - Xmin);
     let Sy = (Vmax - Vmin) / (Ymax - Ymin);
     let Tx = (Umin * Xmax - Umax * Xmin) / (Xmax - Xmin);
@@ -494,7 +494,7 @@ function createPerspectiveMatrix(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax)
 
 function transformAndDraw(object3D, Msrusrc, Mpers, canvasWidth, canvasHeight) {
     // Criamos a matriz de projeção perspectiva
-    var Mjp = createPerspectiveMatrix(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
+    var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
 
     object3D.faces.forEach((face, index) => {
         const screenCoordinates = face.map(point => {
@@ -504,11 +504,9 @@ function transformAndDraw(object3D, Msrusrc, Mpers, canvasWidth, canvasHeight) {
             M = multiplyMatrix(M, Msrusrc);
             M = multiplyMatrix4x1(M, point4x1);
 
-            var printar = viewportTransform(M); //{ screenX: M[0], screenY: M[1] }
 
-            console.log("printar", printar)
-
-            return printar;
+            var asudh = viewportTransform(M); //{ screenX: M[0], screenY: M[1] }
+            return asudh;
         });
 
         drawPolygon(screenCoordinates);
@@ -615,13 +613,15 @@ document.getElementById('3dCube').addEventListener('click', function() {
 
 function viewportTransform(point) {
     // Escala e translação
-    const scaleX = (Umax - Umin) / 2;
-    const scaleY = (Vmax - Vmin) / 2;
+    // const scaleX = (Umax - Umin) / 2;
+    // const scaleY = (Vmax - Vmin) / 2;
     const translateX = (Umax + Umin) / 2;
     const translateY = (Vmax + Vmin) / 2;
 
+    //console.log("scaleX", scaleX, "scaleY", scaleY);
+    console.log("translateX", translateX, "translateY", translateY);
     return {
-        screenX: point[0] * scaleX + translateX,
-        screenY: -point[1] * scaleY + translateY // Inverte Y para correspondência de coordenadas do canvas
+        screenX: point[0] + translateX,
+        screenY: -point[1] + translateY // Inverte Y para correspondência de coordenadas do canvas
     };
 }
