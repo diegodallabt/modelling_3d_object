@@ -365,7 +365,7 @@ function redrawCanvas() {
     fillFaces();
 }
 
-var VRP = { x: 0, y: 0, z: 250 }; // Exemplo: a câmera está olhando para a origem do SRC
+var VRP = { x: 0, y: 0, z: -300 }; // Exemplo: a câmera está olhando para a origem do SRC
 var VPN = { x: 0, y: 0, z: -1 }; // Apontando para o negativo no eixo z (para a cena)
 var VUP = { x: 0, y: -1, z: 0 }; // 'Up' está no eixo y positivo
 
@@ -444,12 +444,24 @@ function multiplyMatrixAndPoint(matrix, point) {
 function transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight) {
     object3D.faces.forEach((face, index) => {
         const screenCoordinates = face.map(point => {
-            let transformedPoint = multiplyMatrixAndPoint(viewMatrix, point);
-            transformedPoint = multiplyMatrixAndPoint(projectionMatrix, transformedPoint);
-            let viewportPoint = viewportTransform(transformedPoint, canvasWidth, canvasHeight);
+           
+           
+            let M ;;
+            M = multiplyMatrixAndPoint(viewMatrix, point);
+
+            console.log(viewMatrix);
+
+            M = multiplyMatrixAndPoint(projectionMatrix, M);
+            let viewportPoint = viewportTransform(M, canvasWidth, canvasHeight);
             return viewportPoint;
         });
         drawPolygon(screenCoordinates);
+        //drawPoints(screenCoordinates);
+
+        ctx.beginPath();
+        ctx.arc(VRP.x, VRP.y, raio, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(255, 0, 0, 1)';
+        ctx.fill();
     });
 }
 
