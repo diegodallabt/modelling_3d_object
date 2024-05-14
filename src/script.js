@@ -5,8 +5,8 @@ var raio = 5;
 
 //Diminui o tamanho da width para o SRT em 400, posição dos botões de transformações e rotações
 var ajustWidth = 400;
-var Xmin = -4, Xmax = -3, Ymin = -3, Ymax = 3;
-var Umin = 200, Umax = 600, Vmin = 100, Vmax = 400;
+var Xmin = 0, Xmax = 600, Ymin = 0, Ymax = 600;
+var Umin = 0, Umax = 600, Vmin = 0, Vmax = 600;
 //var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight;
 
 // List of 3D objects
@@ -462,6 +462,19 @@ function multiplyMatrix(a, b) {
     return result;
 }
 
+function multiplyMatrix4x1(a, b) {
+        // Inicializa o vetor de resultado 4x1 com zeros
+    let result = [0, 0, 0, 0];
+
+    // Multiplica a matriz a pelo vetor b
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            result[i] += a[i][j] * b[j];
+        }
+    }
+
+    return result;
+}
 
 function createPerspectiveMatrix(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax) {
     let Sx = (Umax - Umin) / (Xmax - Xmin);
@@ -480,34 +493,25 @@ function createPerspectiveMatrix(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax)
 }
 
 function transformAndDraw(object3D, Msrusrc, Mpers, canvasWidth, canvasHeight) {
+    // Criamos a matriz de projeção perspectiva
     var Mjp = createPerspectiveMatrix(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
 
     object3D.faces.forEach((face, index) => {
         const screenCoordinates = face.map(point => {
+            const point4x1 = [point.x, point.y, point.z, 1];
+            // Multiplicamos as matrizes de transformação
             var M = multiplyMatrix(Mjp, Mpers);
-            M = multiplyMatrix(Msrusrc, M);
-            console.log("M>>>>", M);
-            console.log("points>>>>",point);
-            M = multiplyMatrixAndPoint(M, point);            
+            M = multiplyMatrix(M, Msrusrc);
+            M = multiplyMatrix4x1(M, point4x1);
 
-            console.log("Mpoints ", M);
-            //let viewportPoint = viewportTransform(M, canvasWidth, canvasHeight);
+            var printar = viewportTransform(M); //{ screenX: M[0], screenY: M[1] }
 
+            console.log("printar", printar)
 
-
-        // point.x * scaleX + translateX,
-        // -point.y * scaleY + translateY // Inverte Y para correspondência de coordenadas do canvas
-
-
-
-            //console.log("view",viewportPoint );
-            return M;
+            return printar;
         });
-        
 
         drawPolygon(screenCoordinates);
-        //drawPoints(screenCoordinates);
-
         ctx.beginPath();
         ctx.arc(VRP.x, VRP.y, raio, 0, 2 * Math.PI);
         ctx.fillStyle = 'rgba(255, 0, 0, 1)';
@@ -609,23 +613,15 @@ document.getElementById('3dCube').addEventListener('click', function() {
     }
 });
 
-//#################################################################################
-// SRT
-//#################################################################################
-
-function viewportTransform(point, canvasWidth, canvasHeight) {
-    // Limites da tela (pode ajustar conforme necessário)
-    const Umin = 0, Umax = canvasWidth, Vmin = 0, Vmax = canvasHeight;
-
+function viewportTransform(point) {
     // Escala e translação
     const scaleX = (Umax - Umin) / 2;
     const scaleY = (Vmax - Vmin) / 2;
     const translateX = (Umax + Umin) / 2;
     const translateY = (Vmax + Vmin) / 2;
 
-    // Transformação de viewport
     return {
-        screenX: point.x * scaleX + translateX,
-        screenY: -point.y * scaleY + translateY // Inverte Y para correspondência de coordenadas do canvas
+        screenX: point[0] * scaleX + translateX,
+        screenY: -point[1] * scaleY + translateY // Inverte Y para correspondência de coordenadas do canvas
     };
 }
