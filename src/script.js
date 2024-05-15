@@ -418,6 +418,22 @@ function perspective(fov, aspect, near, far) {
     ];
 }
 
+function viewportMatrix(xmin, xmax, ymin, ymax, umin, umax, vmin, vmax) {
+    // Calcula os fatores de escala e os termos de translação
+    let scaleX = (umax - umin) / (xmax - xmin);
+    let scaleY = (vmin - vmax) / (ymax - ymin);
+    let translateX = umin - xmin * scaleX;
+    let translateY = vmax - ymin * scaleY;
+
+    // Retorna a matriz de transformação de viewport como um array de arrays
+    return [
+        [scaleX, 0, 0, translateX],
+        [0, scaleY, 0, translateY],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]
+    ];
+}
+
 function multiplyMatrixAndPoint(matrix, point) {
     // Garante que o ponto possui as propriedades x, y, z
     if (!point || typeof point.x !== 'number' || typeof point.y !== 'number' || typeof point.z !== 'number') {
@@ -444,10 +460,13 @@ function multiplyMatrixAndPoint(matrix, point) {
 function transformAndDraw(object3D, viewMatrix, projectionMatrix, canvasWidth, canvasHeight) {
     object3D.faces.forEach((face, index) => {
         const screenCoordinates = face.map(point => {
-            let transformedPoint = multiplyMatrixAndPoint(viewMatrix, point);
-            transformedPoint = multiplyMatrixAndPoint(projectionMatrix, transformedPoint);
-            let viewportPoint = viewportTransform(transformedPoint, canvasWidth, canvasHeight);
-            return viewportPoint;
+            let resultMatrix = viewportMatrix(object3D.minX, object3D.maxX, object3D.minY, object3D.maxY, 0, canvasWidth, 0, canvasHeight);
+            // let M = multiplyMatrixAndPoint(resultMatrix, point);
+            // M = multiplyMatrixAndPoint(M, viewMatrix);
+
+            // console.log("M: ", M);
+
+            return multiplyMatrixAndPoint(M, point);
         });
         drawPolygon(screenCoordinates);
     });
