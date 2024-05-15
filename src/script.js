@@ -197,6 +197,8 @@ function createSlices(object3D, slices) {
 
     const vertices = object3D.polygon.vertices;
     const step = 2 * Math.PI / slices; // Passo angular para cada fatia
+    console.log("step", step);
+    
     const revolutionPoints = new Map(); // Map para armazenar os pontos da revolução
 
     // Loop para criar as fatias da revolução
@@ -244,7 +246,7 @@ function createFaces(object3D, slices) {
 document.getElementById('scale').addEventListener('input', function(event) {
     // Limpa o canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
+    //drawAxes();
     // Chama applyScale com o valor atual do input como fator de escala
     applyScale(parseFloat(event.target.value));
 });
@@ -274,27 +276,15 @@ function applyScale(scaleFactor) {
 
         // Recria as slices após a transformação de escala
         createSlices(object3D, slices);
-        // Redesenha as faces após a escala
-        createFaces(object3D, slices);
-        // Transforma e desenha o objeto após a escala
         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
     });
 }
 
 document.getElementById('rotationY').addEventListener('input', function(event) {
-    // Limpa o canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
+    //drawAxes();
     // Chama applyRotation com o valor atual do input como graus de rotação
     applyRotationY(parseFloat(event.target.value));
-});
-
-document.getElementById('rotationX').addEventListener('input', function(event) {
-    // Limpa o canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    // Chama applyRotationX com o valor atual do input como graus de rotação
-    applyRotationX(parseFloat(event.target.value));
 });
 
 // Função para aplicar rotação em Y e atualizar o polígono
@@ -306,6 +296,31 @@ function rotateAndUpdateY(object3D, radians) {
         point.z = -oldX * Math.sin(radians) + oldZ * Math.cos(radians);
     });
 }
+
+// Atualiza a rotação e redesenha para rotação em Y
+function applyRotationY(rotationDegrees) {
+    const slices = parseInt(document.getElementById('slices').value);
+
+    // Criação das matrizes de visualização e projeção
+    const Msrusrc = lookAt(VRP, VPN, VUP);
+    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+
+    const radians = rotationDegrees * (Math.PI / 180);
+    objects3D.forEach(object3D => {
+        if (!object3D.closed) return;
+        rotateAndUpdateY(object3D, radians);
+        createSlices(object3D, slices);
+        transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
+    });
+}
+
+document.getElementById('rotationX').addEventListener('input', function(event) {
+    // Limpa o canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawAxes();
+    // Chama applyRotationX com o valor atual do input como graus de rotação
+    applyRotationX(parseFloat(event.target.value));
+});
 
 // Função para aplicar rotação em X e atualizar o polígono
 function rotateAndUpdateX(object3D, radians) {
@@ -321,10 +336,6 @@ function rotateAndUpdateX(object3D, radians) {
 function applyRotationX(rotationDegrees) {
     const slices = parseInt(document.getElementById('slices').value);
 
-    // Ajusta o tamanho do canvas
-    canvas.width = window.innerWidth - ajustWidth;
-    canvas.height = window.innerHeight;
-
     // Criação das matrizes de visualização e projeção
     const Msrusrc = lookAt(VRP, VPN, VUP);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
@@ -332,32 +343,45 @@ function applyRotationX(rotationDegrees) {
     const radians = rotationDegrees * (Math.PI / 180);
     objects3D.forEach(object3D => {
         if (!object3D.closed) return;
+
+        // Translada para a origem, rotaciona e depois translada de volta
+        let centroid = translateToOrigin(object3D);
         rotateAndUpdateX(object3D, radians);
+        translateBack(object3D, centroid);
+
         createSlices(object3D, slices);
-        createFaces(object3D, slices);
         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
     });
 }
 
-// Atualiza a rotação e redesenha para rotação em Y
-function applyRotationY(rotationDegrees) {
-    const slices = parseInt(document.getElementById('slices').value);
+// Função para transladar um objeto 3D para a origem
+function translateToOrigin(object3D) {
+    let centroid = { x: 0, y: 0, z: 0 };
+    let numVertices = object3D.polygon.vertices.length;
+    object3D.polygon.vertices.forEach(point => {
+        centroid.x += point.x;
+        centroid.y += point.y;
+        centroid.z += point.z;
+    });
+    centroid.x /= numVertices;
+    centroid.y /= numVertices;
+    centroid.z /= numVertices;
 
-    // Ajusta o tamanho do canvas
-    canvas.width = window.innerWidth - ajustWidth;
-    canvas.height = window.innerHeight;
+    object3D.polygon.vertices.forEach(point => {
+        point.x -= centroid.x;
+        point.y -= centroid.y;
+        point.z -= centroid.z;
+    });
 
-    // Criação das matrizes de visualização e projeção
-    const Msrusrc = lookAt(VRP, VPN, VUP);
-    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+    return centroid;
+}
 
-    const radians = rotationDegrees * (Math.PI / 180);
-    objects3D.forEach(object3D => {
-        if (!object3D.closed) return;
-        rotateAndUpdateY(object3D, radians);
-        createSlices(object3D, slices);
-        createFaces(object3D, slices);
-        transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
+// Função para transladar um objeto 3D de volta para a posição original
+function translateBack(object3D, centroid) {
+    object3D.polygon.vertices.forEach(point => {
+        point.x += centroid.x;
+        point.y += centroid.y;
+        point.z += centroid.z;
     });
 }
 
@@ -368,9 +392,9 @@ function redrawCanvas() {
     fillFaces();
 }
 
-var VRP = { x: 0, y: 0, z: 300 }; // Exemplo: a câmera está olhando para a origem do SRC
-var VPN = { x: 0, y: 0, z: -1 }; // Apontando para o negativo no eixo z (para a cena)
-var VUP = { x: 0, y: -1, z: 0 }; // 'Up' está no eixo y positivo
+var VRP = { x: 0, y: 0, z: 400 }; // Exemplo: a câmera está olhando para a origem do SRC
+var VPN = { x: 0, y: 0, z: 1 }; // Apontando para o negativo no eixo z (para a cena)
+var VUP = { x: 0, y: 1, z: 0 }; // 'Up' está no eixo y positivo
 
 function normalize(vec) {
     let length = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
@@ -504,7 +528,6 @@ function transformAndDraw(object3D, Msrusrc, Mpers, canvasWidth, canvasHeight) {
             M = multiplyMatrix(M, Msrusrc);
             M = multiplyMatrix4x1(M, point4x1);
 
-
             var asudh = viewportTransform(M); //{ screenX: M[0], screenY: M[1] }
             return asudh;
         });
@@ -619,7 +642,7 @@ function viewportTransform(point) {
     const translateY = (Vmax + Vmin) / 2;
 
     //console.log("scaleX", scaleX, "scaleY", scaleY);
-    console.log("translateX", translateX, "translateY", translateY);
+    //console.log("translateX", translateX, "translateY", translateY);
     return {
         screenX: point[0] + translateX,
         screenY: -point[1] + translateY // Inverte Y para correspondência de coordenadas do canvas
