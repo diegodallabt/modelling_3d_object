@@ -348,7 +348,6 @@ function applyRotationX(rotationDegrees) {
         let centroid = translateToOrigin(object3D);
         rotateAndUpdateX(object3D, radians);
         translateBack(object3D, centroid);
-
         createSlices(object3D, slices);
         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
     });
