@@ -9,7 +9,7 @@ var Xmin = 0, Xmax = 600, Ymin = 0, Ymax = 600;
 //var Umin = 0, Umax = 600, Vmin = 0, Vmax = 600;
 var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight;
 
-// List of 3D objects
+
 let objects3D = [{
     id: 0,
     polygon: {
@@ -20,7 +20,8 @@ let objects3D = [{
     faceIntersections: new Map(),
     minY: Infinity,
     maxY: 0,
-    closed: false
+    closed: false,
+    centroid: { x: 0, y: 0, z: 0 }
 }];
 
 // Inicializa o primeiro objeto 3D
@@ -38,10 +39,28 @@ function initializeNewObject3D() {
         faceIntersections: new Map(),
         minY: Infinity,
         maxY: 0,
-        closed: false
+        closed: false,
+        centroid: { x: 0, y: 0, z: 0 }
     };
 
     objects3D.push(newObject3D);
+}
+
+function calculateCentroid(vertices) {
+    let somaX = 0, somaY = 0, somaZ = 0;
+    let totalVertices = vertices.length;
+
+    vertices.forEach(ponto => {
+        somaX += ponto.x;
+        somaY += ponto.y;
+        somaZ += ponto.z;
+    });
+
+    return {
+        x: somaX / totalVertices,
+        y: somaY / totalVertices,
+        z: somaZ / totalVertices
+    };
 }
 
 function drawAxes() {
@@ -90,6 +109,9 @@ canvas.addEventListener('click', function(event) {
     var object3D = objects3D[objects3D.length - 1];
 
     if (object3D.closed) {
+
+        object3D.centroid = calculateCentroid(object3D.polygon.vertices);
+        
         // Create a new object3D and push it to the list
         objects3D.push({
             id: objects3D.length,
@@ -237,6 +259,7 @@ function createFaces(object3D, slices) {
             // Cria uma face com os quatro pontos
             const face = [point1, point2, point4, point3]; // Sentido anti-horário
             object3D.faces.set(`Face${i}_${j}`, face);
+            
         }
     }
 }
@@ -258,7 +281,7 @@ function applyScale(scaleFactor) {
     canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
-    const Msrusrc = lookAt(VRP, VPN, VUP);
+    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
 
     objects3D.forEach(object3D => {
@@ -297,23 +320,58 @@ document.getElementById('rotationX').addEventListener('input', function(event) {
     applyRotationX(parseFloat(event.target.value));
 });
 
-// Função para aplicar rotação em Y e atualizar o polígono
 function rotateAndUpdateY(object3D, radians) {
+    // Calcular o centroide do objeto
+    const centroid = calculateCentroid(object3D.polygon.vertices);
+
+    // Transladar para a origem
+    object3D.polygon.vertices.forEach(point => {
+        point.x -= centroid.x;
+        point.y -= centroid.y;
+        point.z -= centroid.z;
+    });
+
+    // Aplica a rotação em Y
     object3D.polygon.vertices.forEach(point => {
         const oldX = point.x;
         const oldZ = point.z;
         point.x = oldX * Math.cos(radians) + oldZ * Math.sin(radians);
         point.z = -oldX * Math.sin(radians) + oldZ * Math.cos(radians);
     });
+
+    // Transladar de volta para a posição original
+    object3D.polygon.vertices.forEach(point => {
+        point.x += centroid.x;
+        point.y += centroid.y;
+        point.z += centroid.z;
+    });
 }
 
-// Função para aplicar rotação em X e atualizar o polígono
 function rotateAndUpdateX(object3D, radians) {
+    // Calcular o centroide do objeto
+    const centroid = calculateCentroid(object3D.polygon.vertices);
+
+    // Transladar para a origem
+    object3D.polygon.vertices.forEach(point => {
+        point.x -= centroid.x;
+        point.y -= centroid.y;
+        point.z -= centroid.z;
+    });
+
+    // Aplicar rotação
     object3D.polygon.vertices.forEach(point => {
         const oldY = point.y;
         const oldZ = point.z;
+        console.log(radians)
         point.y = oldY * Math.cos(radians) - oldZ * Math.sin(radians);
         point.z = oldY * Math.sin(radians) + oldZ * Math.cos(radians);
+    });
+
+    // Transladar de volta para a posição original
+    object3D.polygon.vertices.forEach(point => {
+        point.x += centroid.x;
+        point.y += centroid.y;
+        point.z += centroid.z;
     });
 }
 
@@ -326,8 +384,8 @@ function applyRotationX(rotationDegrees) {
     canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
-    const Msrusrc = lookAt(VRP, VPN, VUP);
-    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
+    const projectionMatrix = perspective();
 
     const radians = rotationDegrees * (Math.PI / 180);
     objects3D.forEach(object3D => {
@@ -336,6 +394,7 @@ function applyRotationX(rotationDegrees) {
         createSlices(object3D, slices);
         createFaces(object3D, slices);
         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
+        
     });
 }
 
@@ -348,8 +407,8 @@ function applyRotationY(rotationDegrees) {
     canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
-    const Msrusrc = lookAt(VRP, VPN, VUP);
-    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
+    const projectionMatrix = perspective();
 
     const radians = rotationDegrees * (Math.PI / 180);
     objects3D.forEach(object3D => {
@@ -358,8 +417,10 @@ function applyRotationY(rotationDegrees) {
         createSlices(object3D, slices);
         createFaces(object3D, slices);
         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
+        
     });
 }
+
 
 // Redesenha o canvas, incluindo eixos e faces
 function redrawCanvas() {
@@ -368,9 +429,15 @@ function redrawCanvas() {
     fillFaces();
 }
 
-var VRP = { x: 0, y: 0, z: 300 }; // Exemplo: a câmera está olhando para a origem do SRC
-var VPN = { x: 0, y: 0, z: -1 }; // Apontando para o negativo no eixo z (para a cena)
-var VUP = { x: 0, y: -1, z: 0 }; // 'Up' está no eixo y positivo
+var VRP = { x: 0, y: 0, z: 300 };
+// vetor N
+let vetorN = {
+    x: objects3D[0].centroid.x - VRP.x,
+    y: objects3D[0].centroid.y - VRP.y,
+    z: objects3D[0].centroid.z - VRP.z
+};
+// vetor Y
+var vetorY = { x: 0, y: 1, z: 0 };
 
 function normalize(vec) {
     let length = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
@@ -378,6 +445,14 @@ function normalize(vec) {
         return { x: vec.x / length, y: vec.y / length, z: vec.z / length };
     }
     return { x: 0, y: 0, z: 0 };
+}
+
+function scalarMultiply(vec, scalar) {
+    return { x: vec.x * scalar, y: vec.y * scalar, z: vec.z * scalar };
+}
+
+function subtractVectors(a, b) {
+    return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
 }
 
 function crossProduct(a, b) {
@@ -393,16 +468,33 @@ function dotProduct(a, b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-function lookAt(VRP, VPN, VUP) {
-    let n = normalize(VPN); // Normaliza o vetor de plano normal de visualização
-    let u = normalize(crossProduct(VUP, n)); // Normaliza o vetor 'right'
-    let v = crossProduct(n, u); // Recalcula o vetor 'up', que deve ser ortogonal a 'n' e 'u'
+function sruSrc(VRP, vetorN, vetorY) {
+    // vetor n
+    let n = normalize(vetorN);
+
+    // V = Y - (Y . n) * n
+    let dot = dotProduct(vetorY, n);
+    let projection = scalarMultiply(n, dot);
+
+    // vetor v
+    let v = normalize(subtractVectors(vetorY, projection));
+    
+    // vetor u
+    let u = crossProduct(v, n);
+
+    let newVRP = {
+        x: -VRP.x,
+        y: -VRP.y,
+        z: -VRP.z
+    };
+    
+    console.log(newVRP);
 
     // Constrói a matriz de visualização
     let Msrusrc = [
-        [u.x, u.y, u.z, -dotProduct(u, VRP)],
-        [v.x, v.y, v.z, -dotProduct(v, VRP)],
-        [n.x, n.y, n.z, -dotProduct(n, VRP)],
+        [u.x, u.y, u.z, dotProduct(u, newVRP)],
+        [v.x, v.y, v.z, dotProduct(v, newVRP)],
+        [n.x, n.y, n.z, dotProduct(n, newVRP)],
         [0, 0, 0, 1]
     ];
 
@@ -413,49 +505,33 @@ function perspective() {
     return [
         [1, 0, 0, 0],
         [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, -1/VRP.z, 0]
-    ];
-}
-
-function viewportMatrix(xmin, xmax, ymin, ymax, umin, umax, vmin, vmax) {
-    // Calcula os fatores de escala e os termos de translação
-    let scaleX = (umax - umin) / (xmax - xmin);
-    let scaleY = (vmin - vmax) / (ymax - ymin);
-    let translateX = umin - xmin * scaleX;
-    let translateY = vmax - ymin * scaleY;
-
-    // Retorna a matriz de transformação de viewport como um array de arrays
-    return [
-        [scaleX, 0, 0, translateX],
-        [0, scaleY, 0, translateY],
-        [0, 0, 1, 0],
+        [0, 0, 0, 0],
         [0, 0, 0, 1]
     ];
 }
 
-function multiplyMatrixAndPoint(matrix, point) {
-    // Garante que o ponto possui as propriedades x, y, z
-    if (!point || typeof point.x !== 'number' || typeof point.y !== 'number' || typeof point.z !== 'number') {
-        console.error('Invalid point:', point);
-        return { x: 0, y: 0, z: 0, w: 1 }; // Retorna um ponto padrão para evitar falhas
-    }
+// function multiplyMatrixAndPoint(matrix, point) {
+//     // Garante que o ponto possui as propriedades x, y, z
+//     if (!point || typeof point.x !== 'number' || typeof point.y !== 'number' || typeof point.z !== 'number') {
+//         console.error('Invalid point:', point);
+//         return { x: 0, y: 0, z: 0, w: 1 }; // Retorna um ponto padrão para evitar falhas
+//     }
 
-    let result = {
-        x: point.x * matrix[0][0] + point.y * matrix[0][1] + point.z * matrix[0][2] + matrix[0][3],
-        y: point.x * matrix[1][0] + point.y * matrix[1][1] + point.z * matrix[1][2] + matrix[1][3],
-        z: point.x * matrix[2][0] + point.y * matrix[2][1] + point.z * matrix[2][2] + matrix[2][3],
-        w: point.x * matrix[3][0] + point.y * matrix[3][1] + point.z * matrix[3][2] + matrix[3][3]
-    };
+//     let result = {
+//         x: point.x * matrix[0][0] + point.y * matrix[0][1] + point.z * matrix[0][2] + matrix[0][3],
+//         y: point.x * matrix[1][0] + point.y * matrix[1][1] + point.z * matrix[1][2] + matrix[1][3],
+//         z: point.x * matrix[2][0] + point.y * matrix[2][1] + point.z * matrix[2][2] + matrix[2][3],
+//         w: point.x * matrix[3][0] + point.y * matrix[3][1] + point.z * matrix[3][2] + matrix[3][3]
+//     };
 
-    if (result.w !== 0) {
-        result.x /= result.w;
-        result.y /= result.w;
-        result.z /= result.w;
-    }
+//     if (result.w !== 0) {
+//         result.x /= result.w;
+//         result.y /= result.w;
+//         result.z /= result.w;
+//     }
 
-    return result;
-}
+//     return result;
+// }
 
 function multiplyMatrix(a, b) {
     // Inicializa a matriz de resultado 4x4 com zeros
@@ -514,29 +590,31 @@ function transformAndDraw(object3D, Msrusrc, Mpers, canvasWidth, canvasHeight) {
 
     object3D.faces.forEach((face, index) => {
         const screenCoordinates = face.map(point => {
-            const point4x1 = [point.x, point.y, point.z, 1];
-            // Multiplicamos as matrizes de transformação
+            const newPoint = [point.x, point.y, point.z, 1];
+            // console.log("PONTOS", newPoint);
             var M = multiplyMatrix(Mjp, Mpers);
+            // console.log("MJP", Mjp);
+            // console.log("MPERS",Mpers);
+            // console.log("RESULTADO MJP . MPERS", M);
             M = multiplyMatrix(M, Msrusrc);
-            M = multiplyMatrix4x1(M, point4x1);
+            // console.log("SRC", Msrusrc);
+            // console.log("RESULTADO' = RESULTADO  . Msrusrc", M);
+            M = multiplyMatrix4x1(M, newPoint);
+            // console.log("P' = ", M);
 
 
-            var asudh = viewportTransform(M); //{ screenX: M[0], screenY: M[1] }
-            return asudh;
+            var viewObject = centerObject(M);
+            return viewObject;
         });
 
         drawPolygon(screenCoordinates);
-        ctx.beginPath();
-        ctx.arc(VRP.x, VRP.y, raio, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgba(255, 0, 0, 1)';
-        ctx.fill();
+  
     });
 }
 
 function drawPolygon(coordinates) {
 
     if (coordinates.length < 2) return; // Não há o que desenhar com menos de dois pontos
-
     ctx.beginPath();
     ctx.moveTo(coordinates[0].screenX, coordinates[0].screenY);
     for (let i = 1; i < coordinates.length; i++) {
@@ -569,7 +647,7 @@ document.getElementById('3dButton').addEventListener('click', () => {
     canvas.height = canvasHeight;
 
     // Restante do código para criar matrizes e chamar transformAndDraw
-    const Msrusrc = lookAt(VRP, VPN, VUP);
+    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
     const projectionMatrix = perspective(Math.PI / 2, canvasWidth / canvasHeight, 1, 100);
 
     objects3D.forEach(object3D => {
@@ -611,14 +689,14 @@ document.getElementById('3dCube').addEventListener('click', function() {
 
     drawAxes();
 
-    const slices = parseInt(document.getElementById('slices').value); // Pega o número atual de slices do input
+    const slices = parseInt(document.getElementById('slices').value); 
 
     // Ajusta o tamanho do canvas
     canvas.width = window.innerWidth - ajustWidth;
     canvas.height = window.innerHeight;
 
     // Criação das matrizes de visualização e projeção
-    const Msrusrc = lookAt(VRP, VPN, VUP);
+    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
 
     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
@@ -627,17 +705,12 @@ document.getElementById('3dCube').addEventListener('click', function() {
     }
 });
 
-function viewportTransform(point) {
-    // Escala e translação
-    // const scaleX = (Umax - Umin) / 2;
-    // const scaleY = (Vmax - Vmin) / 2;
+function centerObject(point) {
     const translateX = (Umax + Umin) / 2;
     const translateY = (Vmax + Vmin) / 2;
 
-    //console.log("scaleX", scaleX, "scaleY", scaleY);
-    console.log("translateX", translateX, "translateY", translateY);
     return {
         screenX: point[0] + translateX,
-        screenY: -point[1] + translateY // Inverte Y para correspondência de coordenadas do canvas
+        screenY: -point[1] + translateY
     };
 }
