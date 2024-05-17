@@ -180,16 +180,20 @@ function rotatePoint(point, angleX, angleY, origin) {
     let cosY = Math.cos(radY);
     let sinY = Math.sin(radY);
 
+    // Aplicar rotação em Y
     let rotatedX = point.x * cosY + point.z * sinY;
     let rotatedZ = -point.x * sinY + point.z * cosY;
 
+    // Transladar para a origem
     let x = rotatedX - origin.x;
     let y = point.y - origin.y;
     let z = rotatedZ - origin.z;
 
+    // Aplicar rotação em X
     let newY = y * cosX - z * sinX;
     let newZ = y * sinX + z * cosX;
 
+    // Transladar de volta
     return {
         x: x + origin.x,
         y: newY + origin.y,
