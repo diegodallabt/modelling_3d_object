@@ -15,7 +15,6 @@ let translateX = 0;
 let translateY = 0;
 let translateZ = 0;
 
-
 let objects3D = [{
     id: 0,
     polygon: {
@@ -27,11 +26,42 @@ let objects3D = [{
     minY: Infinity,
     maxY: 0,
     closed: false,
-    centroid: { x: 0, y: 0, z: 0 }
+    centroid: { x: 0, y: 0, z: 0 },
+    transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
 }];
+
+let selectedObjectId = 0;
 
 initializeNewObject3D();
 drawAxes();
+
+function updateObjectSelector() {
+    const selector = document.getElementById('objectSelector');
+    selector.innerHTML = '';
+    objects3D.forEach(obj => {
+        const option = document.createElement('option');
+        option.value = obj.id;
+        if(obj.id == 0){
+            return;
+        }
+        option.textContent = `Objeto ${obj.id}`;
+        selector.appendChild(option);
+    });
+    selector.value = selectedObjectId;
+}
+
+document.getElementById('objectSelector').addEventListener('change', function(event) {
+    selectedObjectId = parseInt(event.target.value);
+
+    let selectedObject = objects3D[selectedObjectId];
+    document.getElementById('rotationX').value = selectedObject.transform.rotationX;
+    document.getElementById('rotationY').value = selectedObject.transform.rotationY;
+    document.getElementById('scale').value = selectedObject.transform.scale;
+    document.getElementById('translateX').value = selectedObject.transform.translateX;
+    document.getElementById('translateY').value = selectedObject.transform.translateY;
+
+    redrawCanvas();
+});
 
 function initializeNewObject3D() {
     let newObject3D = {
@@ -45,7 +75,8 @@ function initializeNewObject3D() {
         minY: Infinity,
         maxY: 0,
         closed: false,
-        centroid: { x: 0, y: 0, z: 0 }
+        centroid: { x: 0, y: 0, z: 0 },
+        transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
     };
     objects3D.push(newObject3D);
 }
@@ -97,9 +128,12 @@ canvas.addEventListener('click', function(event) {
             faceIntersections: new Map(),
             minY: Infinity,
             maxY: 0,
-            closed: false
+            closed: false,
+            centroid: { x: 0, y: 0, z: 0 },
+            transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
         });
         object3D = objects3D[objects3D.length - 1];
+        
         drawAxes();
     }
     var ponto = { x: x, y: y, z: z };
@@ -111,6 +145,7 @@ canvas.addEventListener('click', function(event) {
             ctx.lineTo(object3D.polygon.vertices[object3D.polygon.vertices.length - 1].x + canvas.width / 2, canvas.height / 2 - object3D.polygon.vertices[object3D.polygon.vertices.length - 1].y);
             ctx.stroke();
             object3D.closed = true;
+            updateObjectSelector();
             object3D.minY = Infinity;
             object3D.maxY = -Infinity;
             object3D.polygon.vertices.forEach(ponto => {
@@ -158,35 +193,42 @@ function resetCanvas() {
         faceIntersections: new Map(),
         minY: Infinity,
         maxY: 0,
-        closed: false
+        closed: false,
+        centroid: { x: 0, y: 0, z: 0 },
+        transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
     }];
+    updateObjectSelector();
 }
 
 document.getElementById('scale').addEventListener('input', function(event) {
-    scaleFactor = parseFloat(event.target.value);
+    let selectedObject = objects3D[selectedObjectId];
+    selectedObject.transform.scale = parseFloat(event.target.value);
     redrawCanvas();
 });
 
 document.getElementById('rotationY').addEventListener('input', function(event) {
-    rotationY = parseFloat(event.target.value);
+    let selectedObject = objects3D[selectedObjectId];
+    selectedObject.transform.rotationY = parseFloat(event.target.value);
     redrawCanvas();
 });
 
 document.getElementById('rotationX').addEventListener('input', function(event) {
-    rotationX = parseFloat(event.target.value);
+    let selectedObject = objects3D[selectedObjectId];
+    selectedObject.transform.rotationX = parseFloat(event.target.value);
     redrawCanvas();
 });
 
 document.getElementById('translateX').addEventListener('input', function(event) {
-    translateX = parseFloat(event.target.value);
+    let selectedObject = objects3D[selectedObjectId];
+    selectedObject.transform.translateX = parseFloat(event.target.value);
     redrawCanvas();
 });
 
 document.getElementById('translateY').addEventListener('input', function(event) {
-    translateY = parseFloat(event.target.value);
+    let selectedObject = objects3D[selectedObjectId];
+    selectedObject.transform.translateY = parseFloat(event.target.value);
     redrawCanvas();
 });
-
 
 function rotatePoint(point, angleX, angleY, origin) {
     let radX = angleX * Math.PI / 180;
@@ -213,7 +255,6 @@ function rotatePoint(point, angleX, angleY, origin) {
         z: newZ + origin.z
     };
 }
-
 
 var VRP = { x: 0, y: 0, z: 300 };
 let vetorN = {
@@ -324,21 +365,22 @@ function createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax) {
 function transformAndDraw(object3D, Msrusrc, Mpers) {
     var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
     const centroid = calculateCentroid(object3D.polygon.vertices);
+    const transform = object3D.transform;
 
     object3D.faces.forEach((faces, index) => {
         faces.forEach(face => {
             const screenCoordinates = face.map(point => {
                 // Rotaciona o ponto em torno do centroide
-                let rotated = rotatePoint(point, rotationX, rotationY, centroid);
+                let rotated = rotatePoint(point, transform.rotationX, transform.rotationY, centroid);
 
                 // Aplica o fator de escala
-                rotated.x *= scaleFactor;
-                rotated.y *= scaleFactor;
-                rotated.z *= scaleFactor;
+                rotated.x *= transform.scale;
+                rotated.y *= transform.scale;
+                rotated.z *= transform.scale;
 
                 // Aplica a translação
-                rotated.x -= translateX;
-                rotated.y += translateY;
+                rotated.x -= transform.translateX;
+                rotated.y += transform.translateY;
 
                 const newPoint = [rotated.x, rotated.y, rotated.z, 1];
                 var M = multiplyMatrix(Mjp, Mpers);
@@ -374,8 +416,8 @@ function drawPolygon(coordinates) {
     ctx.closePath();
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.75)';
     ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
-    ctx.fill();
+    // ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+    // ctx.fill();
 }
 
 function drawPoints(coordinates) {
@@ -441,40 +483,43 @@ document.getElementById('3dButton').addEventListener('click', () => {
     });
 });
 
-document.getElementById('3dCube').addEventListener('click', function() {
-    var cubePoints = [
-        { x: 60, y: 60, z: 0 },
-        { x: 30, y: 60, z: 0 },
-        { x: 30, y: 30, z: 0 },
-        { x: 60, y: 30, z: 0 },
-        { x: 60, y: 60, z: 0 },
-        { x: 30, y: 60, z: 0 },
-        { x: 30, y: 30, z: 0 },
-        { x: 60, y: 30, z: 0 }
-    ];
-    objects3D.push({
-        id: objects3D.length,
-        polygon: {
-            vertices: cubePoints,
-        },
-        revolutionPoints: new Map(),
-        faces: new Map(),
-        faceIntersections: new Map(),
-        minY: Infinity,
-        maxY: 0,
-        closed: true
-    });
-    var object3D = objects3D[objects3D.length - 1];
-    drawAxes();
-    const slices = parseInt(document.getElementById('slices').value); 
-    canvas.width = window.innerWidth - ajustWidth;
-    canvas.height = window.innerHeight;
-    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
-    if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-        transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
-    }
-});
+// document.getElementById('3dCube').addEventListener('click', function() {
+//     var cubePoints = [
+//         { x: 60, y: 60, z: 0 },
+//         { x: 30, y: 60, z: 0 },
+//         { x: 30, y: 30, z: 0 },
+//         { x: 60, y: 30, z: 0 },
+//         { x: 60, y: 60, z: 0 },
+//         { x: 30, y: 60, z: 0 },
+//         { x: 30, y: 30, z: 0 },
+//         { x: 60, y: 30, z: 0 }
+//     ];
+//     objects3D.push({
+//         id: objects3D.length,
+//         polygon: {
+//             vertices: cubePoints,
+//         },
+//         revolutionPoints: new Map(),
+//         faces: new Map(),
+//         faceIntersections: new Map(),
+//         minY: Infinity,
+//         maxY: 0,
+//         closed: true,
+//         centroid: { x: 0, y: 0, z: 0 },
+//         transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
+//     });
+//     updateObjectSelector();
+//     var object3D = objects3D[objects3D.length - 1];
+//     drawAxes();
+//     const slices = parseInt(document.getElementById('slices').value);
+//     canvas.width = window.innerWidth - ajustWidth;
+//     canvas.height = window.innerHeight;
+//     const Msrusrc = sruSrc(VRP, vetorN, vetorY);
+//     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+//     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+//         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
+//     }
+// });
 
 function centerObject(point) {
     const translateX = (Umax + Umin) / 2;
