@@ -8,7 +8,13 @@ var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.inn
 
 let rotationX = 0;
 let rotationY = 0;
+
 let scaleFactor = 1;
+
+let translateX = 0;
+let translateY = 0;
+let translateZ = 0;
+
 
 let objects3D = [{
     id: 0,
@@ -171,6 +177,17 @@ document.getElementById('rotationX').addEventListener('input', function(event) {
     redrawCanvas();
 });
 
+document.getElementById('translateX').addEventListener('input', function(event) {
+    translateX = parseFloat(event.target.value);
+    redrawCanvas();
+});
+
+document.getElementById('translateY').addEventListener('input', function(event) {
+    translateY = parseFloat(event.target.value);
+    redrawCanvas();
+});
+
+
 function rotatePoint(point, angleX, angleY, origin) {
     let radX = angleX * Math.PI / 180;
     let radY = angleY * Math.PI / 180;
@@ -318,6 +335,10 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
                 rotated.x *= scaleFactor;
                 rotated.y *= scaleFactor;
                 rotated.z *= scaleFactor;
+
+                // Aplica a translação
+                rotated.x -= translateX;
+                rotated.y += translateY;
 
                 const newPoint = [rotated.x, rotated.y, rotated.z, 1];
                 var M = multiplyMatrix(Mjp, Mpers);
