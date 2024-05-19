@@ -256,6 +256,22 @@ function rotatePoint(point, angleX, angleY, origin) {
     };
 }
 
+function scalePoint(point, scaleFactor, origin) {
+    let translatedX = point.x  - origin.x;
+    let translatedY = point.y - origin.y;
+    let translatedZ = point.z - origin.z;
+
+    let x = translatedX * scaleFactor;
+    let y = translatedY * scaleFactor;
+    let z = translatedZ * scaleFactor;
+
+    return {
+        x: x + origin.x,
+        y: y + origin.y,
+        z: z + origin.z
+    };
+}
+
 var VRP = { x: 0, y: 0, z: 300 };
 let vetorN = {
     x: objects3D[0].centroid.x - VRP.x,
@@ -370,17 +386,16 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
     object3D.faces.forEach((faces, index) => {
         faces.forEach(face => {
             const screenCoordinates = face.map(point => {
-                // Rotaciona o ponto em torno do centroide
+                // Aplica rotação
                 let rotated = rotatePoint(point, transform.rotationX, transform.rotationY, centroid);
 
-                // Aplica o fator de escala
-                rotated.x *= transform.scale;
-                rotated.y *= transform.scale;
-                rotated.z *= transform.scale;
+                // Aplica a escala
+                rotated = scalePoint(rotated, transform.scale, centroid);
 
                 // Aplica a translação
                 rotated.x -= transform.translateX;
                 rotated.y += transform.translateY;
+                rotated.z += transform.translateZ;
 
                 const newPoint = [rotated.x, rotated.y, rotated.z, 1];
                 var M = multiplyMatrix(Mjp, Mpers);
