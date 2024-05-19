@@ -579,7 +579,8 @@ function calculateFaceNormal(face) {
 
 function isFaceVisible(face, VRP) {
     const normal = calculateFaceNormal(face);
-    const vectorToVRP = subtractVectors(VRP, face[0]);
-    const dot = dotProduct(normal, vectorToVRP);
-    return dot < 0; // Se o produto escalar for negativo, a face está voltada para a câmera
+    const observer = subtractVectors(VRP, face[0]);
+    const visibility = dotProduct(normal, observer);
+
+    return visibility > 0;
 }
