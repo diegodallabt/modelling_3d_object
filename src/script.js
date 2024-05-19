@@ -578,8 +578,11 @@ function calculateFaceNormal(face) {
 }
 
 function isFaceVisible(face, VRP) {
-    const normal = calculateFaceNormal(face);
-    const observer = subtractVectors(VRP, face[0]);
+    const N = calculateFaceNormal(face);
+    const normal = normalize(N);
+    const O = subtractVectors(VRP, face[0]);
+    const observer = normalize(O);
+    
     const visibility = dotProduct(normal, observer);
 
     return visibility > 0;
