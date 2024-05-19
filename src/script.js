@@ -363,62 +363,44 @@ function createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax) {
 }
 
 function transformAndDraw(object3D, Msrusrc, Mpers) {
-    var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
-    const centroid = calculateCentroid(object3D.polygon.vertices);
-    const transform = object3D.transform;
+  // Criamos a matriz de projeção perspectiva
+  var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
 
-    object3D.faces.forEach((faces, index) => {
-        faces.forEach(face => {
-            const screenCoordinates = face.map(point => {
-                // Rotaciona o ponto em torno do centroide
-                let rotated = rotatePoint(point, transform.rotationX, transform.rotationY, centroid);
+  object3D.faces.forEach((face, index) => {
+    const screenCoordinates = face.map((point) => {
+      const point4x1 = [point.x, point.y, point.z, 1];
+      // Multiplicamos as matrizes de transformação
+      var M = multiplyMatrix(Mjp, Msrusrc); // Inverte a ordem de aplicação das transformações
+      M = multiplyMatrix(M, Mpers);
+      M = multiplyMatrix4x1(M, point4x1);
 
-                // Aplica o fator de escala
-                rotated.x *= transform.scale;
-                rotated.y *= transform.scale;
-                rotated.z *= transform.scale;
-
-                // Aplica a translação
-                rotated.x -= transform.translateX;
-                rotated.y += transform.translateY;
-
-                const newPoint = [rotated.x, rotated.y, rotated.z, 1];
-                var M = multiplyMatrix(Mjp, Mpers);
-                M = multiplyMatrix(M, Msrusrc);
-                M = multiplyMatrix4x1(M, newPoint);
-                var viewObject = centerObject(M);
-                return viewObject;
-            });
-            drawPolygon(screenCoordinates);
-        });
+      var asudh = viewportTransform(M); //{ screenX: M[0], screenY: M[1] }
+      return asudh;
     });
-}
 
-function redrawCanvas() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawAxes();
-    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-    const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
-    objects3D.forEach(object3D => {
-        if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-            transformAndDraw(object3D, Msrusrc, projectionMatrix);
-        }
-    });
+    drawPolygon(screenCoordinates);
+    ctx.beginPath();
+    ctx.arc(VRP.x, VRP.y, raio, 0, 2 * Math.PI);
+    ctx.fillStyle = "rgba(255, 0, 0, 1)";
+    ctx.fill();
+  });
 }
 
 function drawPolygon(coordinates) {
-    if (coordinates.length < 2) return;
-    ctx.beginPath();
-    ctx.moveTo(coordinates[0].screenX, coordinates[0].screenY);
-    for (let i = 1; i < coordinates.length; i++) {
-        ctx.lineTo(coordinates[i].screenX, coordinates[i].screenY);
-    }
-    ctx.closePath();
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.75)';
-    ctx.stroke();
-    // ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
-    // ctx.fill();
+  if (coordinates.length < 2) return; // Não há o que desenhar com menos de dois pontos
+
+  ctx.beginPath();
+  ctx.moveTo(coordinates[0].screenX, coordinates[0].screenY);
+  for (let i = 1; i < coordinates.length; i++) {
+    ctx.lineTo(coordinates[i].screenX, coordinates[i].screenY);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = "rgba(0, 255, 0, 0.75)";
+  ctx.stroke();
+  ctx.fillStyle = "rgba(0, 0, 255, 0.5)";
+  ctx.fill();
 }
+
 
 function drawPoints(coordinates) {
     coordinates.forEach(point => {
@@ -429,103 +411,86 @@ function drawPoints(coordinates) {
     });
 }
 
-function createRevolution(object3D, slices) {
-    const vertices = object3D.polygon.vertices;
-    const angleStep = (2 * Math.PI) / slices;
-    for (let i = 0; i < slices; i++) {
-        const angle = i * angleStep;
-        const cosAngle = Math.cos(angle);
-        const sinAngle = Math.sin(angle);
-        const revolutionVertices = vertices.map(vertex => ({
-            x: vertex.x * cosAngle,
-            y: vertex.y,
-            z: vertex.x * sinAngle
-        }));
-        object3D.revolutionPoints.set(i, revolutionVertices);
-    }
-    createFaces(object3D, slices);
-}
+document.getElementById("3dButton").addEventListener("click", () => {
+  const slices = parseInt(document.getElementById("slices").value);
 
-function createFaces(object3D, slices) {
-    for (let i = 0; i < slices; i++) {
-        const nextIndex = (i + 1) % slices;
-        const currentPoints = object3D.revolutionPoints.get(i);
-        const nextPoints = object3D.revolutionPoints.get(nextIndex);
-        for (let j = 0; j < currentPoints.length - 1; j++) {
-            const face = [
-                currentPoints[j],
-                nextPoints[j],
-                nextPoints[j + 1],
-                currentPoints[j + 1]
-            ];
-            if (!object3D.faces.has(i)) {
-                object3D.faces.set(i, []);
-            }
-            object3D.faces.get(i).push(face);
-        }
-    }
-}
+  const canvasWidth = window.innerWidth - ajustWidth;
+  const canvasHeight = window.innerHeight;
 
-document.getElementById('3dButton').addEventListener('click', () => {
-    const slices = parseInt(document.getElementById('slices').value);
-    const canvasWidth = window.innerWidth - ajustWidth;
-    const canvasHeight = window.innerHeight;
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-    const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-    const projectionMatrix = perspective(Math.PI / 2, canvasWidth / canvasHeight, 1, 100);
-    drawAxes();
-    objects3D.forEach(object3D => {
-        if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-            createRevolution(object3D, slices);
-            transformAndDraw(object3D, Msrusrc, projectionMatrix);
-        }
-    });
+  // Ajusta o tamanho do canvas
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  // Restante do código para criar matrizes e chamar transformAndDraw
+  const Msrusrc = lookAt(VRP, VPN, VUP);
+  const Mpers = perspective(); //Math.PI / 2, canvas.width / canvas.height, 1, 100
+
+  objects3D.forEach((object3D) => {
+    if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+      createSlices(object3D, slices);
+      transformAndDraw(object3D, Msrusrc, Mpers); //, canvasWidth, canvasHeight
+    }
+  });
 });
 
-// document.getElementById('3dCube').addEventListener('click', function() {
-//     var cubePoints = [
-//         { x: 60, y: 60, z: 0 },
-//         { x: 30, y: 60, z: 0 },
-//         { x: 30, y: 30, z: 0 },
-//         { x: 60, y: 30, z: 0 },
-//         { x: 60, y: 60, z: 0 },
-//         { x: 30, y: 60, z: 0 },
-//         { x: 30, y: 30, z: 0 },
-//         { x: 60, y: 30, z: 0 }
-//     ];
-//     objects3D.push({
-//         id: objects3D.length,
-//         polygon: {
-//             vertices: cubePoints,
-//         },
-//         revolutionPoints: new Map(),
-//         faces: new Map(),
-//         faceIntersections: new Map(),
-//         minY: Infinity,
-//         maxY: 0,
-//         closed: true,
-//         centroid: { x: 0, y: 0, z: 0 },
-//         transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
-//     });
-//     updateObjectSelector();
-//     var object3D = objects3D[objects3D.length - 1];
-//     drawAxes();
-//     const slices = parseInt(document.getElementById('slices').value);
-//     canvas.width = window.innerWidth - ajustWidth;
-//     canvas.height = window.innerHeight;
-//     const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-//     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
-//     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-//         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
-//     }
-// });
+document.getElementById("3dCube").addEventListener("click", function () {
+  var cubePoints = [
+    { x: 60, y: 60, z: 0 },
+    { x: 30, y: 60, z: 0 },
+    { x: 30, y: 30, z: 0 },
+    { x: 60, y: 30, z: 0 },
+    { x: 60, y: 60, z: 0 },
+    { x: 30, y: 60, z: 0 },
+    { x: 30, y: 30, z: 0 },
+    { x: 60, y: 30, z: 0 },
+  ];
 
-function centerObject(point) {
-    const translateX = (Umax + Umin) / 2;
-    const translateY = (Vmax + Vmin) / 2;
-    return {
-        screenX: point[0] + translateX,
-        screenY: -point[1] + translateY
-    };
+  // Cria um novo objeto3D e adiciona à lista
+  objects3D.push({
+    id: objects3D.length,
+    polygon: {
+      vertices: cubePoints,
+    },
+    revolutionPoints: new Map(),
+    faces: new Map(),
+    faceIntersections: new Map(),
+    minY: Infinity,
+    maxY: 0,
+    closed: true,
+  });
+
+  // Obtém o objeto3D atual
+  var object3D = objects3D[objects3D.length - 1];
+
+  drawAxes();
+
+  const slices = parseInt(document.getElementById("slices").value); // Pega o número atual de slices do input
+
+  // Ajusta o tamanho do canvas
+  canvas.width = window.innerWidth - ajustWidth;
+  canvas.height = window.innerHeight;
+
+  // Criação das matrizes de visualização e projeção
+  const Msrusrc = lookAt(VRP, VPN, VUP);
+  const Mpers = perspective(); //Math.PI / 2, canvas.width / canvas.height, 1, 100
+
+  if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+    createSlices(object3D, slices);
+    transformAndDraw(object3D, Msrusrc, Mpers); //, canvasWidth, canvasHeight
+  }
+});
+
+function viewportTransform(point) {
+  // Escala e translação
+  // const scaleX = (Umax - Umin) / 2;
+  // const scaleY = (Vmax - Vmin) / 2;
+  const translateX = (Umax + Umin) / 2;
+  const translateY = (Vmax + Vmin) / 2;
+
+  //console.log("scaleX", scaleX, "scaleY", scaleY);
+  //console.log("translateX", translateX, "translateY", translateY);
+  return {
+    screenX: point[0] + translateX,
+    screenY: -point[1] + translateY, // Inverte Y para correspondência de coordenadas do canvas
+  };
 }
