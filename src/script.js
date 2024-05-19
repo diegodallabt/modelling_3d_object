@@ -272,7 +272,7 @@ function scalePoint(point, scaleFactor, origin) {
     };
 }
 
-var VRP = { x: 0, y: 0, z: 300 };
+var VRP = { x: 0, y: 0, z: 700 };
 let vetorN = {
     x: objects3D[0].centroid.x - VRP.x,
     y: objects3D[0].centroid.y - VRP.y,
