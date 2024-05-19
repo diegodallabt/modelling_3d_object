@@ -378,14 +378,25 @@ function createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax) {
     return Mjp;
 }
 
+function calculateAverageDepth(face) {
+    let sumZ = 0;
+    face.forEach(vertex => {
+        sumZ += vertex.z;
+    });
+    return sumZ / face.length;
+}
+
+
 function transformAndDraw(object3D, Msrusrc, Mpers) {
     var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
     const centroid = calculateCentroid(object3D.polygon.vertices);
     const transform = object3D.transform;
 
+    let facesWithDepth = [];
+
     object3D.faces.forEach((faces, index) => {
         faces.forEach(face => {
-            const screenCoordinates = face.map(point => {
+            const transformedFace = face.map(point => {
                 // Aplica rotação
                 let rotated = rotatePoint(point, transform.rotationX, transform.rotationY, centroid);
 
@@ -397,15 +408,30 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
                 rotated.y += transform.translateY;
                 rotated.z += transform.translateZ;
 
-                const newPoint = [rotated.x, rotated.y, rotated.z, 1];
-                var M = multiplyMatrix(Mjp, Mpers);
-                M = multiplyMatrix(M, Msrusrc);
-                M = multiplyMatrix4x1(M, newPoint);
-                var viewObject = centerObject(M);
-                return viewObject;
+                return rotated;
             });
-            drawPolygon(screenCoordinates);
+
+            // Calculo da visibilidade pela normal
+            if (isFaceVisible(transformedFace, VRP)) {
+                const averageDepth = calculateAverageDepth(transformedFace);
+                facesWithDepth.push({ transformedFace, averageDepth });
+            }
         });
+    });
+
+    // Ordenando faces para desenhar as mais distantes primeiro
+    facesWithDepth.sort((a, b) => b.averageDepth - a.averageDepth);
+
+    facesWithDepth.forEach(({ transformedFace }) => {
+        const screenCoordinates = transformedFace.map(rotated => {
+            const newPoint = [rotated.x, rotated.y, rotated.z, 1];
+            var M = multiplyMatrix(Mjp, Mpers);
+            M = multiplyMatrix(M, Msrusrc);
+            M = multiplyMatrix4x1(M, newPoint);
+            var viewObject = centerObject(M);
+            return viewObject;
+        });
+        drawPolygon(screenCoordinates);
     });
 }
 
@@ -431,8 +457,8 @@ function drawPolygon(coordinates) {
     ctx.closePath();
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.75)';
     ctx.stroke();
-    // ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
-    // ctx.fill();
+    ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+    ctx.fill();
 }
 
 function drawPoints(coordinates) {
@@ -543,4 +569,17 @@ function centerObject(point) {
         screenX: point[0] + translateX,
         screenY: -point[1] + translateY
     };
+}
+
+function calculateFaceNormal(face) {
+    const vector1 = subtractVectors(face[1], face[0]);
+    const vector2 = subtractVectors(face[2], face[0]);
+    return crossProduct(vector1, vector2);
+}
+
+function isFaceVisible(face, VRP) {
+    const normal = calculateFaceNormal(face);
+    const vectorToVRP = subtractVectors(VRP, face[0]);
+    const dot = dotProduct(normal, vectorToVRP);
+    return dot < 0; // Se o produto escalar for negativo, a face está voltada para a câmera
 }
