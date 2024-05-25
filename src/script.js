@@ -15,6 +15,11 @@ let translateX = 0;
 let translateY = 0;
 let translateZ = 0;
 
+let light = {
+    position: { x: 0, y: 0, z: 600 },
+    intensity: { r: 30, g: 100, b: 50 }
+};
+
 let objects3D = [{
     id: 0,
     polygon: {
@@ -27,8 +32,15 @@ let objects3D = [{
     maxY: 0,
     closed: false,
     centroid: { x: 0, y: 0, z: 0 },
-    transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
+    transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
+    material: {
+        Ka: { r: 0.1, g: 0.1, b: 0.1 },
+        Kd: { r: 0.7, g: 0.7, b: 0.7 },
+        Ks: { r: 0.5, g: 0.5, b: 0.5 },
+        shininess: 10
+    }
 }];
+
 
 let selectedObjectId = 0;
 
@@ -76,7 +88,13 @@ function initializeNewObject3D() {
         maxY: 0,
         closed: false,
         centroid: { x: 0, y: 0, z: 0 },
-        transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
+        transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
+        material: {
+            Ka: { r: 0.1, g: 0.1, b: 0.1 },
+            Kd: { r: 0.7, g: 0.7, b: 0.7 },
+            Ks: { r: 0.5, g: 0.5, b: 0.5 },
+            shininess: 10
+        }
     };
     objects3D.push(newObject3D);
 }
@@ -130,7 +148,13 @@ canvas.addEventListener('click', function(event) {
             maxY: 0,
             closed: false,
             centroid: { x: 0, y: 0, z: 0 },
-            transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
+            transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
+            material: {
+                Ka: { r: 0.1, g: 0.1, b: 0.1 },
+                Kd: { r: 0.7, g: 0.7, b: 0.7 },
+                Ks: { r: 0.5, g: 0.5, b: 0.5 },
+                shininess: 10
+            }
         });
         object3D = objects3D[objects3D.length - 1];
         
@@ -414,7 +438,8 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
             // Calculo da visibilidade pela normal
             if (isFaceVisible(transformedFace, VRP)) {
                 const averageDepth = calculateAverageDepth(transformedFace);
-                facesWithDepth.push({ transformedFace, averageDepth });
+                const color = calculateFlatShading(transformedFace, light, object3D.material);
+                facesWithDepth.push({ transformedFace, averageDepth, color });
             }
         });
     });
@@ -422,7 +447,7 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
     // Ordenando faces para desenhar as mais distantes primeiro
     facesWithDepth.sort((a, b) => b.averageDepth - a.averageDepth);
 
-    facesWithDepth.forEach(({ transformedFace }) => {
+    facesWithDepth.forEach(({ transformedFace, color }) => {
         const screenCoordinates = transformedFace.map(rotated => {
             const newPoint = [rotated.x, rotated.y, rotated.z, 1];
             var M = multiplyMatrix(Mjp, Mpers);
@@ -431,9 +456,11 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
             var viewObject = centerObject(M);
             return viewObject;
         });
-        drawPolygon(screenCoordinates);
+        drawPolygon(screenCoordinates, color);
     });
 }
+
+
 
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -447,7 +474,7 @@ function redrawCanvas() {
     });
 }
 
-function drawPolygon(coordinates) {
+function drawPolygon(coordinates, color) {
     if (coordinates.length < 2) return;
     ctx.beginPath();
     ctx.moveTo(coordinates[0].screenX, coordinates[0].screenY);
@@ -455,9 +482,9 @@ function drawPolygon(coordinates) {
         ctx.lineTo(coordinates[i].screenX, coordinates[i].screenY);
     }
     ctx.closePath();
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.75)';
+    ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
     ctx.stroke();
-    ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+    ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
     ctx.fill();
 }
 
@@ -585,5 +612,111 @@ function isFaceVisible(face, VRP) {
     
     const visibility = dotProduct(normal, observer);
 
+
     return visibility > 0;
 }
+
+function calculateFaceCentroid(face) {
+    let sumX = 0, sumY = 0, sumZ = 0;
+    let numVertices = face.length;
+
+    face.forEach(vertex => {
+        sumX += vertex.x;
+        sumY += vertex.y;
+        sumZ += vertex.z;
+    });
+
+    return {
+        x: sumX / numVertices,
+        y: sumY / numVertices,
+        z: sumZ / numVertices
+    };
+}
+
+function calculateFlatShading(face, light, material) {
+    const centroid = calculateFaceCentroid(face);
+
+    // Vetor normal da face
+    let N = calculateFaceNormal(face);
+    let normal = normalize(N);
+
+    // Vetor L (direção da luz)
+    let L = {
+        x: light.position.x - centroid.x,
+        y: light.position.y - centroid.y,
+        z: light.position.z - centroid.z
+    };
+
+    // Normaliza o vetor L
+    L = normalize(L);
+
+    // Produto escalar entre a normal e o vetor L
+    let dotProductLN = dotProduct(normal, L);
+
+    // Vetor V (direção do observador)
+    let V = {
+        x: VRP.x - centroid.x,
+        y: VRP.y - centroid.y,
+        z: VRP.z - centroid.z
+    };
+
+    // Normaliza o vetor V
+    V = normalize(V);
+
+    // Vetor R (reflexão de L sobre a normal)
+    let R = {
+        x: 2 * normal.x * dotProductLN - L.x,
+        y: 2 * normal.y * dotProductLN - L.y,
+        z: 2 * normal.z * dotProductLN - L.z
+    };
+    R = normalize(R);
+
+    // Produto escalar entre R e V
+    let dotProductRV = Math.max(dotProduct(R, V), 0);
+    let specularIntensity = Math.pow(dotProductRV, material.shininess);
+
+    // Componentes ambientes
+    let Ia = {
+        r: light.intensity.r * material.Ka.r,
+        g: light.intensity.g * material.Ka.g,
+        b: light.intensity.b * material.Ka.b
+    };
+
+    if(dotProductLN < 0){
+        return Ia;
+    }
+
+    // Componentes difusa
+    let Id = { r: 0, g: 0, b: 0 };
+    Id = {
+        r: light.intensity.r * material.Kd.r * dotProductLN,
+        g: light.intensity.g * material.Kd.g * dotProductLN,
+        b: light.intensity.b * material.Kd.b * dotProductLN
+    };
+
+
+    if(dotProductRV < 0){
+        return {
+            r: Ia.r + Id.r,
+            g: Ia.g + Id.g,
+            b: Ia.b + Id.b
+        };
+    }
+
+    let Is = { r: 0, g: 0, b: 0 };
+    Is = {
+        r: light.intensity.r * material.Ks.r * specularIntensity,
+        g: light.intensity.g * material.Ks.g * specularIntensity,
+        b: light.intensity.b * specularIntensity
+    };
+
+    // Intensidade total da iluminação
+    let color = {
+        r: Ia.r + Id.r + Is.r,
+        g: Ia.g + Id.g + Is.g,
+        b: Ia.b + Id.b + Is.b
+    };
+
+    return color;
+}
+
