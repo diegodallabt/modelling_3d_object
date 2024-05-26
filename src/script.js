@@ -2,8 +2,8 @@ var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 var raio = 5;
 
-var ajustWidth = 400;
-let ajustHeight = 0;
+var ajustWidth = 800;
+let ajustHeight = 400;
 var Xmin = 0, Xmax = 60, Ymin = 0, Ymax = 60;
 var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight - ajustHeight;
 
@@ -21,7 +21,6 @@ let translateZ = 0;
 
 let zBuffer = new Array(Umax).fill(0).map(() => new Array(Vmax).fill(Infinity));
 let colorBuffer = new Array(Umax).fill(0).map(() => new Array(Vmax).fill({ r: 255, g: 255, b: 255 }));
-
 
 let light = {
   position: { x: 0, y: 0, z: 600 },
@@ -79,6 +78,7 @@ document.getElementById('objectSelector').addEventListener('change', function(ev
   document.getElementById('scale').value = selectedObject.transform.scale;
   document.getElementById('translateX').value = selectedObject.transform.translateX;
   document.getElementById('translateY').value = selectedObject.transform.translateY;
+  document.getElementById('translateZ').value = selectedObject.transform.translateZ;
 
   redrawCanvas();
 });
@@ -425,8 +425,10 @@ function calculateAverageDepth(face) {
   return sumZ / face.length;
 }
 
+const Msrusrc = sruSrc(VRP, vetorN, vetorY);
+const Mproj = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
 
-function transformAndDraw(object3D, Msrusrc, Mpers) {
+function transformAndDraw(object3D) {
   var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
   const centroid = calculateCentroid(object3D.polygon.vertices);
   const transform = object3D.transform;
@@ -459,113 +461,98 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
     });
   });
 
-  // Ordenando faces para desenhar as mais distantes primeiro
-  facesWithDepth.sort((a, b) => b.averageDepth - a.averageDepth);
   facesWithDepth.forEach(({ transformedFace, color }) => {
     const screenCoordinates = transformedFace.map(rotated => {
       const newPoint = [rotated.x, rotated.y, rotated.z, 1];
-      var M = multiplyMatrix(Mjp, Mpers);
+      var M = multiplyMatrix(Mjp, Mproj);
       M = multiplyMatrix(M, Msrusrc);
       M = multiplyMatrix4x1(M, newPoint);
       var viewObject = centerObject(M);
       return viewObject;
     });
-    //drawPolygon(screenCoordinates, color);
+    // drawPolygon(screenCoordinates, color);
     raster(screenCoordinates, color);
-    console.log("---------------------------------------");
   });
 
-  paint();
-}
-
-// paint all the color buffer in the screen
-function paint() {
-  for (let i = 0; i < colorBuffer.length; i++) {
-    for (let j = 0; j < colorBuffer[i].length; j++) {
-      ctx.fillStyle = `rgba(${colorBuffer[i][j].r}, ${colorBuffer[i][j].g}, ${colorBuffer[i][j].b}, 1)`;
-      ctx.fillRect(i, j, 1, 1);
-    }
-  }
+  // paint();
 }
 
 function raster(face, color) {
-  face.sort((a, b) => a.screenY - b.screenY);
-
-  const minY = Math.ceil(face[0].screenY);
-  const maxY = Math.floor(face[face.length - 1].screenY);
-
-  for (let y = minY; y <= maxY; y++) {
-    // Find intersection points with scanline y
-    const intersections = [];
-    for (let i = 0; i < face.length; i++) {
-      const start = face[i];
-      const end = face[(i + 1) % face.length];
-
-      if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
-        const t = (y - start.screenY) / (end.screenY - start.screenY);
-        const x = start.screenX + t * (end.screenX - start.screenX);
-        const z = start.screenZ + t * (end.screenZ - start.screenZ);
-        intersections.push({ x, z });
+    face.sort((a, b) => a.screenY - b.screenY);
+  
+    const minY = Math.ceil(face[0].screenY);
+    const maxY = Math.floor(face[face.length - 1].screenY);
+  
+    for (let y = minY; y <= maxY; y++) {
+      // Encontrar pontos de interseção com a linha de varredura y
+      const intersections = [];
+      for (let i = 0; i < face.length; i++) {
+        const start = face[i];
+        const end = face[(i + 1) % face.length];
+  
+        if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
+          const t = (y - start.screenY) / (end.screenY - start.screenY);
+          const x = start.screenX + t * (end.screenX - start.screenX);
+          const z = start.screenZ + t * (end.screenZ - start.screenZ);
+          intersections.push({ x, z });
+        }
       }
-    }
-
-    intersections.sort((a, b) => a.x - b.x);
-
-    // Fill pixels between intersections
-    for (let i = 0; i < intersections.length; i += 2) {
-      const xStart = Math.ceil(intersections[i].x);
-      const zStart = intersections[i].z;
-      const xEnd = Math.floor(intersections[i + 1].x);
-      const zEnd = intersections[i + 1].z;
-
-      for (let x = xStart; x <= xEnd; x++) {
-        const t = (x - xStart) / (xEnd - xStart);
-        const z = zStart + t * (zEnd - zStart);
-
-        if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
-          zBuffer[x][y] = z;
-          colorBuffer[x][y] = { r: color.r, g: color.g, b: color.b};
+  
+      intersections.sort((a, b) => a.x - b.x);
+  
+      // Preencher pixels entre as interseções
+      for (let i = 0; i < intersections.length; i += 2) {
+        const xStart = Math.ceil(intersections[i].x);
+        const zStart = intersections[i].z;
+        const xEnd = Math.floor(intersections[i + 1].x);
+        const zEnd = intersections[i + 1].z;
+  
+        for (let x = xStart; x <= xEnd; x++) {
+          const t = (x - xStart) / (xEnd - xStart);
+          const z = zStart + t * (zEnd - zStart);
+  
+          if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
+            zBuffer[x][y] = z;
+            colorBuffer[x][y] = { r: color.r, g: color.g, b: color.b };
+          }
         }
       }
     }
+    
+    // Atualizar o canvas com o color buffer
+    const imageData = ctx.createImageData(Umax, Vmax);
+    const data = imageData.data;
+  
+    for (let y = 0; y < Vmax; y++) {
+      for (let x = 0; x < Umax; x++) {
+        const index = (y * Umax + x) * 4;
+        const pixelColor = colorBuffer[x][y];
+        data[index] = pixelColor.r;
+        data[index + 1] = pixelColor.g;
+        data[index + 2] = pixelColor.b;
+        data[index + 3] = 255; // Alpha
+      }
+    }
+  
+    ctx.putImageData(imageData, 0, 0);
   }
-
-  // print all colors which are not white
-  //for (let i = 0; i < colorBuffer.length; i++) {
-  //  for (let j = 0; j < colorBuffer[i].length; j++) {
-  //    if (colorBuffer[i][j].r !== 255 || colorBuffer[i][j].g !== 255 || colorBuffer[i][j].b !== 255) {
-  //      console.log(i, j, colorBuffer[i][j]);
-  //    }
-  //  }
-  //}
-
-  // Update the canvas with the color buffer
-  //const imageData = ctx.createImageData(canvasWidth, canvasHeight);
-  //const data = imageData.data;
-  //
-  //for (let y = 0; y < Vmax; y++) {
-  //  for (let x = 0; x < Umax; x++) {
-  //    const index = (y * canvasWidth + x) * 4;
-  //    //const pixelColor = colorBuffer[x][y];
-  //    const pixelColor = { r: 255, g: 0, b: 0, a: 1 };
-  //    data[index] = pixelColor.r;
-  //    data[index + 1] = pixelColor.g;
-  //    data[index + 2] = pixelColor.b;
-  //    data[index + 3] = pixelColor.a;
-  //  }
-  //}
-  //
-  //ctx.putImageData(imageData, 0, 0);
-}
+  
 
 function redrawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawAxes();
-  const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-  const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+
+  // Limpa o colorBuffer e zBuffer
+  for (let i = 0; i < Umax; i++) {
+    for (let j = 0; j < Vmax; j++) {
+      colorBuffer[i][j] = { r: 255, g: 255, b: 255 }; // Assume que a cor de fundo é branca
+      zBuffer[i][j] = Infinity; // Inicializa o zBuffer com um valor alto
+    }
+  }
+  
   objects3D.forEach(object3D => {
     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-      transformAndDraw(object3D, Msrusrc, projectionMatrix);
+      transformAndDraw(object3D);
     }
   });
 }
@@ -633,17 +620,17 @@ function createFaces(object3D, slices) {
 
 document.getElementById('3dButton').addEventListener('click', () => {
   const slices = parseInt(document.getElementById('slices').value);
+  
   const canvasWidth = window.innerWidth - ajustWidth;
   const canvasHeight = window.innerHeight - ajustHeight;
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
-  const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-  const projectionMatrix = perspective(Math.PI / 2, canvasWidth / canvasHeight, 1, 100);
+
   drawAxes();
   objects3D.forEach(object3D => {
     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
       createRevolution(object3D, slices);
-      transformAndDraw(object3D, Msrusrc, projectionMatrix);
+      transformAndDraw(object3D);
     }
   });
 });
