@@ -71,6 +71,8 @@ document.getElementById('objectSelector').addEventListener('change', function(ev
     document.getElementById('scale').value = selectedObject.transform.scale;
     document.getElementById('translateX').value = selectedObject.transform.translateX;
     document.getElementById('translateY').value = selectedObject.transform.translateY;
+    document.getElementById('translateZ').value = selectedObject.transform.translateZ;
+
 
     redrawCanvas();
 });
@@ -251,6 +253,12 @@ document.getElementById('translateX').addEventListener('input', function(event) 
 document.getElementById('translateY').addEventListener('input', function(event) {
     let selectedObject = objects3D[selectedObjectId];
     selectedObject.transform.translateY = parseFloat(event.target.value);
+    redrawCanvas();
+});
+
+document.getElementById('translateZ').addEventListener('input', function(event) {
+    let selectedObject = objects3D[selectedObjectId];
+    selectedObject.transform.translateZ = parseFloat(event.target.value);
     redrawCanvas();
 });
 
@@ -446,7 +454,7 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
 
     // Ordenando faces para desenhar as mais distantes primeiro
     facesWithDepth.sort((a, b) => b.averageDepth - a.averageDepth);
-
+    console.log(facesWithDepth);
     facesWithDepth.forEach(({ transformedFace, color }) => {
         const screenCoordinates = transformedFace.map(rotated => {
             const newPoint = [rotated.x, rotated.y, rotated.z, 1];
@@ -460,13 +468,29 @@ function transformAndDraw(object3D, Msrusrc, Mpers) {
     });
 }
 
-
+// function redrawCanvas() {
+//     ctx.clearRect(0, 0, canvas.width, canvas.height);
+//     drawAxes();
+//     const Msrusrc = sruSrc(VRP, vetorN, vetorY);
+//     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+//     objects3D.forEach(object3D => {
+//         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
+//             transformAndDraw(object3D, Msrusrc, projectionMatrix);
+//         }
+//     });
+// }
 
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawAxes();
+    // Ordenar os objetos com base na coordenada z do centróide (mais distante primeiro)
+    objects3D.sort((a, b) => b.centroid.z - a.centroid.z);
+
     const Msrusrc = sruSrc(VRP, vetorN, vetorY);
     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+    
+    console.log(objects3D);
+
     objects3D.forEach(object3D => {
         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
             transformAndDraw(object3D, Msrusrc, projectionMatrix);
@@ -482,10 +506,10 @@ function drawPolygon(coordinates, color) {
         ctx.lineTo(coordinates[i].screenX, coordinates[i].screenY);
     }
     ctx.closePath();
-    ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
+    ctx.strokeStyle = `rgba(0, 240, 0, 1)`;
     ctx.stroke();
-    ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
-    ctx.fill();
+    // ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
+    // ctx.fill();
 }
 
 function drawPoints(coordinates) {
@@ -543,6 +567,7 @@ document.getElementById('3dButton').addEventListener('click', () => {
     const Msrusrc = sruSrc(VRP, vetorN, vetorY);
     const projectionMatrix = perspective(Math.PI / 2, canvasWidth / canvasHeight, 1, 100);
     drawAxes();
+
     objects3D.forEach(object3D => {
         if (object3D.closed && object3D.polygon.vertices.length >= 2) {
             createRevolution(object3D, slices);
@@ -550,44 +575,6 @@ document.getElementById('3dButton').addEventListener('click', () => {
         }
     });
 });
-
-// document.getElementById('3dCube').addEventListener('click', function() {
-//     var cubePoints = [
-//         { x: 60, y: 60, z: 0 },
-//         { x: 30, y: 60, z: 0 },
-//         { x: 30, y: 30, z: 0 },
-//         { x: 60, y: 30, z: 0 },
-//         { x: 60, y: 60, z: 0 },
-//         { x: 30, y: 60, z: 0 },
-//         { x: 30, y: 30, z: 0 },
-//         { x: 60, y: 30, z: 0 }
-//     ];
-//     objects3D.push({
-//         id: objects3D.length,
-//         polygon: {
-//             vertices: cubePoints,
-//         },
-//         revolutionPoints: new Map(),
-//         faces: new Map(),
-//         faceIntersections: new Map(),
-//         minY: Infinity,
-//         maxY: 0,
-//         closed: true,
-//         centroid: { x: 0, y: 0, z: 0 },
-//         transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
-//     });
-//     updateObjectSelector();
-//     var object3D = objects3D[objects3D.length - 1];
-//     drawAxes();
-//     const slices = parseInt(document.getElementById('slices').value);
-//     canvas.width = window.innerWidth - ajustWidth;
-//     canvas.height = window.innerHeight;
-//     const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-//     const projectionMatrix = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
-//     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
-//         transformAndDraw(object3D, Msrusrc, projectionMatrix, canvas.width, canvas.height);
-//     }
-// });
 
 function centerObject(point) {
     const translateX = (Umax + Umin) / 2;
