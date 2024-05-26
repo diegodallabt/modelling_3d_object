@@ -470,8 +470,8 @@ function transformAndDraw(object3D) {
       var viewObject = centerObject(M);
       return viewObject;
     });
-    // drawPolygon(screenCoordinates, color);
-    raster(screenCoordinates, color);
+    drawPolygon(screenCoordinates, color);
+    // raster(screenCoordinates, color);
   });
 
   // paint();
@@ -519,6 +519,11 @@ function raster(face, color) {
       }
     }
     
+    
+  }
+  
+
+function paint() {
     // Atualizar o canvas com o color buffer
     const imageData = ctx.createImageData(Umax, Vmax);
     const data = imageData.data;
@@ -535,8 +540,7 @@ function raster(face, color) {
     }
   
     ctx.putImageData(imageData, 0, 0);
-  }
-  
+}
 
 function redrawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -562,9 +566,11 @@ function drawPolygon(coordinates, color) {
   if (coordinates.length < 2) return;
   ctx.beginPath();
   ctx.moveTo(coordinates[0].screenX, coordinates[0].screenY);
+
   for (let i = 1; i < coordinates.length; i++) {
     ctx.lineTo(coordinates[i].screenX, coordinates[i].screenY);
   }
+  
   ctx.closePath();
   ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
   ctx.stroke();
