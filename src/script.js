@@ -2,9 +2,9 @@ var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 var raio = 5;
 
-var ajustWidth = 800;
-let ajustHeight = 400;
-var Xmin = 0, Xmax = 60, Ymin = 0, Ymax = 60;
+var ajustWidth = 700;
+let ajustHeight = 300;
+var Xmin = 0, Xmax = 400, Ymin = 0, Ymax = 400;
 var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight - ajustHeight;
 
 let canvasWidth = Umax;
@@ -12,6 +12,7 @@ let canvasHeight = Vmax;
 
 let rotationX = 0;
 let rotationY = 0;
+let rotationZ = 0;
 
 let scaleFactor = 1;
 
@@ -39,7 +40,7 @@ let objects3D = [{
   maxY: 0,
   closed: false,
   centroid: { x: 0, y: 0, z: 0 },
-  transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
+  transform: { rotationX: 0, rotationY: 0, rotationZ: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
   material: {
     Ka: { r: 0.1, g: 0.1, b: 0.1 },
     Kd: { r: 0.7, g: 0.7, b: 0.7 },
@@ -75,6 +76,7 @@ document.getElementById('objectSelector').addEventListener('change', function(ev
   let selectedObject = objects3D[selectedObjectId];
   document.getElementById('rotationX').value = selectedObject.transform.rotationX;
   document.getElementById('rotationY').value = selectedObject.transform.rotationY;
+  document.getElementById('rotationZ').value = selectedObject.transform.rotationZ;
   document.getElementById('scale').value = selectedObject.transform.scale;
   document.getElementById('translateX').value = selectedObject.transform.translateX;
   document.getElementById('translateY').value = selectedObject.transform.translateY;
@@ -96,7 +98,7 @@ function initializeNewObject3D() {
     maxY: 0,
     closed: false,
     centroid: { x: 0, y: 0, z: 0 },
-    transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
+    transform: { rotationX: 0, rotationY: 0, rotationZ: 0,  scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
     material: {
       Ka: { r: 0.1, g: 0.1, b: 0.1 },
       Kd: { r: 0.7, g: 0.7, b: 0.7 },
@@ -156,7 +158,7 @@ canvas.addEventListener('click', function(event) {
       maxY: 0,
       closed: false,
       centroid: { x: 0, y: 0, z: 0 },
-      transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
+      transform: { rotationX: 0, rotationY: 0, rotationZ: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 },
       material: {
         Ka: { r: 0.1, g: 0.1, b: 0.1 },
         Kd: { r: 0.7, g: 0.7, b: 0.7 },
@@ -227,7 +229,7 @@ function resetCanvas() {
     maxY: 0,
     closed: false,
     centroid: { x: 0, y: 0, z: 0 },
-    transform: { rotationX: 0, rotationY: 0, scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
+    transform: { rotationX: 0, rotationY: 0, rotationZ: 0,  scale: 1, translateX: 0, translateY: 0, translateZ: 0 }
   }];
   updateObjectSelector();
 }
@@ -250,6 +252,12 @@ document.getElementById('rotationX').addEventListener('input', function(event) {
   redrawCanvas();
 });
 
+document.getElementById('rotationZ').addEventListener('input', function(event) {
+  let selectedObject = objects3D[selectedObjectId];
+  selectedObject.transform.rotationZ = parseFloat(event.target.value);
+  redrawCanvas();
+});
+
 document.getElementById('translateX').addEventListener('input', function(event) {
   let selectedObject = objects3D[selectedObjectId];
   selectedObject.transform.translateX = parseFloat(event.target.value);
@@ -268,15 +276,19 @@ document.getElementById('translateZ').addEventListener('input', function(event) 
     redrawCanvas();
 });
 
-function rotatePoint(point, angleX, angleY, origin) {
+function rotatePoint(point, angleX, angleY, angleZ, origin) {
   let radX = angleX * Math.PI / 180;
   let radY = angleY * Math.PI / 180;
+  let radZ = angleZ * Math.PI / 180;
 
   let cosX = Math.cos(radX);
   let sinX = Math.sin(radX);
   let cosY = Math.cos(radY);
   let sinY = Math.sin(radY);
+  let cosZ = Math.cos(radZ);
+  let sinZ = Math.sin(radZ);
 
+  // Rotação no eixo Y
   let rotatedX = point.x * cosY + point.z * sinY;
   let rotatedZ = -point.x * sinY + point.z * cosY;
 
@@ -284,13 +296,21 @@ function rotatePoint(point, angleX, angleY, origin) {
   let y = point.y - origin.y;
   let z = rotatedZ - origin.z;
 
+  // Rotação no eixo X
   let newY = y * cosX - z * sinX;
   let newZ = y * sinX + z * cosX;
 
+  y = newY;
+  z = newZ;
+
+  // Rotação no eixo Z
+  let newX = x * cosZ - y * sinZ;
+  newY = x * sinZ + y * cosZ;
+
   return {
-    x: x + origin.x,
+    x: newX + origin.x,
     y: newY + origin.y,
-    z: newZ + origin.z
+    z: z + origin.z
   };
 }
 
@@ -434,12 +454,13 @@ function transformAndDraw(object3D) {
   const transform = object3D.transform;
 
   let facesWithDepth = [];
+  let visibleFaces = []; // Reiniciar a lista de faces visíveis
 
   object3D.faces.forEach((faces, index) => {
     faces.forEach(face => {
       const transformedFace = face.map(point => {
         // Aplica rotação
-        let rotated = rotatePoint(point, transform.rotationX, transform.rotationY, centroid);
+        let rotated = rotatePoint(point, transform.rotationX, transform.rotationY,  transform.rotationZ, centroid);
 
         // Aplica a escala
         rotated = scalePoint(rotated, transform.scale, centroid);
@@ -452,14 +473,33 @@ function transformAndDraw(object3D) {
         return rotated;
       });
 
-      // Calculo da visibilidade pela normal
+      
+
       if (isFaceVisible(transformedFace, VRP)) {
+        // quando for flatshading
         const averageDepth = calculateAverageDepth(transformedFace);
         const color = calculateFlatShading(transformedFace, light, object3D.material);
         facesWithDepth.push({ transformedFace, averageDepth, color });
+        // quando for gouraudshading
+        // visibleFaces.push(transformedFace); // Adiciona a face visível à lista
       }
     });
   });
+
+  // quando for gouraudshading
+  //  visibleFaces.forEach(face => {
+  //   const vertexNormals = face.map(vertex => calculateVertexNormal(vertex, visibleFaces));
+  //   const vertexColors = face.map((vertex, i) => calculateVertexIntensity(vertex, vertexNormals[i], light, object3D.material));
+
+  //   // Adicionar cores aos vértices para interpolação
+  //   const transformedFaceWithColors = face.map((vertex, i) => ({
+  //       ...vertex,
+  //       color: vertexColors[i]
+  //   }));
+
+  //   const averageDepth = calculateAverageDepth(transformedFaceWithColors);
+  //   facesWithDepth.push({ transformedFace: transformedFaceWithColors, averageDepth });
+  // });
 
   facesWithDepth.forEach(({ transformedFace, color }) => {
     const screenCoordinates = transformedFace.map(rotated => {
@@ -468,14 +508,81 @@ function transformAndDraw(object3D) {
       M = multiplyMatrix(M, Msrusrc);
       M = multiplyMatrix4x1(M, newPoint);
       var viewObject = centerObject(M);
+    // quando for gouraudshading
+    //   return {
+    //     ...viewObject,
+    //     color: rotated.color // Adicionar cor interpolada
+    // };
+    // quando for flatshading
       return viewObject;
     });
     drawPolygon(screenCoordinates, color);
     // raster(screenCoordinates, color);
+    // rasterGouraud(screenCoordinates);
   });
 
   // paint();
 }
+
+function rasterGouraud(polygon) {
+  polygon.sort((a, b) => a.screenY - b.screenY);
+
+  const minY = Math.ceil(polygon[0].screenY);
+  const maxY = Math.floor(polygon[polygon.length - 1].screenY);
+
+  for (let y = minY; y <= maxY; y++) {
+      const intersections = [];
+
+      for (let i = 0; i < polygon.length; i++) {
+          const start = polygon[i];
+          const end = polygon[(i + 1) % polygon.length];
+
+          if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
+              const t = (y - start.screenY) / (end.screenY - start.screenY);
+              const x = start.screenX + t * (end.screenX - start.screenX);
+              const z = start.screenZ + t * (end.screenZ - start.screenZ);
+              const r = start.color.r + t * (end.color.r - start.color.r);
+              const g = start.color.g + t * (end.color.g - start.color.g);
+              const b = start.color.b + t * (end.color.b - start.color.b);
+              intersections.push({ x, z, color: { r, g, b } });
+          }
+      }
+
+      intersections.sort((a, b) => a.x - b.x);
+
+      for (let i = 0; i < intersections.length; i += 2) {
+          const xStart = Math.ceil(intersections[i].x);
+          const zStart = intersections[i].z;
+          const colorStart = intersections[i].color;
+          const xEnd = Math.floor(intersections[i + 1].x);
+          const zEnd = intersections[i + 1].z;
+          const colorEnd = intersections[i + 1].color;
+
+          const deltaX = xEnd - xStart;
+          const deltaZ = (zEnd - zStart) / deltaX;
+          const deltaR = (colorEnd.r - colorStart.r) / deltaX;
+          const deltaG = (colorEnd.g - colorStart.g) / deltaX;
+          const deltaB = (colorEnd.b - colorStart.b) / deltaX;
+
+          let z = zStart;
+          let r = colorStart.r;
+          let g = colorStart.g;
+          let b = colorStart.b;
+
+          for (let x = xStart; x <= xEnd; x++) {
+              if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
+                  zBuffer[x][y] = z;
+                  colorBuffer[x][y] = { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+              }
+              z += deltaZ;
+              r += deltaR;
+              g += deltaG;
+              b += deltaB;
+          }
+      }
+  }
+}
+
 
 function raster(face, color) {
     face.sort((a, b) => a.screenY - b.screenY);
@@ -518,11 +625,8 @@ function raster(face, color) {
         }
       }
     }
-    
-    
   }
   
-
 function paint() {
     // Atualizar o canvas com o color buffer
     const imageData = ctx.createImageData(Umax, Vmax);
@@ -544,7 +648,6 @@ function paint() {
 
 function redrawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawAxes();
 
   // Limpa o colorBuffer e zBuffer
   for (let i = 0; i < Umax; i++) {
@@ -572,10 +675,10 @@ function drawPolygon(coordinates, color) {
   }
   
   ctx.closePath();
-  ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
+  ctx.strokeStyle = `rgba(0, 255, 0, 1)`;
   ctx.stroke();
-  ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
-  ctx.fill();
+  // ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 1)`;
+  // ctx.fill();
 }
 
 function drawPoints(coordinates) {
@@ -632,7 +735,6 @@ document.getElementById('3dButton').addEventListener('click', () => {
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  drawAxes();
   objects3D.forEach(object3D => {
     if (object3D.closed && object3D.polygon.vertices.length >= 2) {
       createRevolution(object3D, slices);
@@ -684,6 +786,33 @@ function calculateFaceCentroid(face) {
     y: sumY / numVertices,
     z: sumZ / numVertices
   };
+}
+
+function verticesEqual(v1, v2) {
+  return v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;
+}
+
+// Função para calcular as normais dos vértices com base nas faces visíveis
+function calculateVertexNormal(vertex, visibleFaces) {
+  let normal = { x: 0, y: 0, z: 0 };
+  let count = 0;
+  visibleFaces.forEach(face => {
+      if (face.some(v => verticesEqual(v, vertex))) {
+          let faceNormal = calculateFaceNormal(face);
+          normal.x += faceNormal.x;
+          normal.y += faceNormal.y;
+          normal.z += faceNormal.z;
+          count++;
+      }
+  });
+
+  if (count > 0) {
+      normal.x /= count;
+      normal.y /= count;
+      normal.z /= count;
+  }
+
+  return normalize(normal);
 }
 
 function calculateFlatShading(face, light, material) {
@@ -773,3 +902,68 @@ function calculateFlatShading(face, light, material) {
   return color;
 }
 
+function calculateVertexIntensity(vertex, normal, light, material) {
+  let L = {
+      x: light.position.x - vertex.x,
+      y: light.position.y - vertex.y,
+      z: light.position.z - vertex.z
+  };
+  L = normalize(L);
+
+  let dotProductLN = dotProduct(normal, L);
+
+  let V = {
+      x: VRP.x - vertex.x,
+      y: VRP.y - vertex.y,
+      z: VRP.z - vertex.z
+  };
+  V = normalize(V);
+
+  let R = {
+      x: 2 * normal.x * dotProductLN - L.x,
+      y: 2 * normal.y * dotProductLN - L.y,
+      z: 2 * normal.z * dotProductLN - L.z
+  };
+  R = normalize(R);
+
+  let dotProductRV = Math.max(dotProduct(R, V), 0);
+  let specularIntensity = Math.pow(dotProductRV, material.shininess);
+
+  let Ia = {
+      r: light.intensity.r * material.Ka.r,
+      g: light.intensity.g * material.Ka.g,
+      b: light.intensity.b * material.Ka.b
+  };
+
+  if (dotProductLN < 0) {
+      return Ia;
+  }
+
+  let Id = {
+      r: light.intensity.r * material.Kd.r * dotProductLN,
+      g: light.intensity.g * material.Kd.g * dotProductLN,
+      b: light.intensity.b * material.Kd.b * dotProductLN
+  };
+
+  if (dotProductRV < 0) {
+      return {
+          r: Ia.r + Id.r,
+          g: Ia.g + Id.g,
+          b: Ia.b + Id.b
+      };
+  }
+
+  let Is = {
+      r: light.intensity.r * material.Ks.r * specularIntensity,
+      g: light.intensity.g * material.Ks.g * specularIntensity,
+      b: light.intensity.b * specularIntensity
+  };
+
+  let color = {
+      r: Ia.r + Id.r + Is.r,
+      g: Ia.g + Id.g + Is.g,
+      b: Ia.b + Id.b + Is.b
+  };
+
+  return color;
+}
