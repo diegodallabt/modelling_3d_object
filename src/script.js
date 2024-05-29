@@ -297,22 +297,18 @@ function rotatePoint(point, angleX, angleY, angleZ, origin) {
   let newX = rotatedX * cosY + point.z * sinY;
   let newZ = -rotatedX * sinY + point.z * cosY;
 
-  // Translação para origem
-  let x = newX - origin.x;
-  let y = rotatedY - origin.y;
-  let z = newZ - origin.z;
 
   // Rotação no eixo X
-  let newY = y * cosX - z * sinX;
-  newZ = y * sinX + z * cosX;
+  let newY = rotatedY * cosX - newZ * sinX;
+  newZ = rotatedY * sinX + newZ * cosX;
 
-  y = newY;
-  z = newZ;
+  // y = newY;
+  // z = newZ;
 
   return {
-    x: x + origin.x,
-    y: y + origin.y,
-    z: z + origin.z
+    x: newX ,
+    y: newY ,
+    z: newZ
   };
 }
 
