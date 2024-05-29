@@ -6,6 +6,7 @@ var ajustWidth = 700;
 let ajustHeight = 300;
 var Xmin = 0, Xmax = 400, Ymin = 0, Ymax = 400;
 var Umin = 0, Umax = window.innerWidth - ajustWidth, Vmin = 0, Vmax = window.innerHeight - ajustHeight;
+var dp = 600;
 
 let canvasWidth = Umax;
 let canvasHeight = Vmax;
@@ -288,28 +289,29 @@ function rotatePoint(point, angleX, angleY, angleZ, origin) {
   let cosZ = Math.cos(radZ);
   let sinZ = Math.sin(radZ);
 
-  // Rotação no eixo Y
-  let rotatedX = point.x * cosY + point.z * sinY;
-  let rotatedZ = -point.x * sinY + point.z * cosY;
+  // Rotação no eixo Z
+  let rotatedX = point.x * cosZ - point.y * sinZ;
+  let rotatedY = point.x * sinZ + point.y * cosZ;
 
-  let x = rotatedX - origin.x;
-  let y = point.y - origin.y;
-  let z = rotatedZ - origin.z;
+  // Rotação no eixo Y
+  let newX = rotatedX * cosY + point.z * sinY;
+  let newZ = -rotatedX * sinY + point.z * cosY;
+
+  // Translação para origem
+  let x = newX - origin.x;
+  let y = rotatedY - origin.y;
+  let z = newZ - origin.z;
 
   // Rotação no eixo X
   let newY = y * cosX - z * sinX;
-  let newZ = y * sinX + z * cosX;
+  newZ = y * sinX + z * cosX;
 
   y = newY;
   z = newZ;
 
-  // Rotação no eixo Z
-  let newX = x * cosZ - y * sinZ;
-  newY = x * sinZ + y * cosZ;
-
   return {
-    x: newX + origin.x,
-    y: newY + origin.y,
+    x: x + origin.x,
+    y: y + origin.y,
     z: z + origin.z
   };
 }
@@ -396,6 +398,15 @@ function parallel() {
   ];
 }
 
+function perspective() {
+  return [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, -1/dp, 0]
+  ];
+}
+
 function multiplyMatrix(a, b) {
   let result = [
     [0, 0, 0, 0],
@@ -446,7 +457,7 @@ function calculateAverageDepth(face) {
 }
 
 const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-const Mproj = parallel();
+const Mproj = perspective();
 
 function transformAndDraw(object3D) {
   var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
@@ -454,54 +465,25 @@ function transformAndDraw(object3D) {
   const transform = object3D.transform;
 
   let facesWithDepth = [];
-  let visibleFaces = []; // Reiniciar a lista de faces visíveis
 
   object3D.faces.forEach((faces, index) => {
     faces.forEach(face => {
       const transformedFace = face.map(point => {
-        // Aplica rotação
         let rotated = rotatePoint(point, transform.rotationX, transform.rotationY,  transform.rotationZ, centroid);
-
-        // Aplica a escala
         rotated = scalePoint(rotated, transform.scale, centroid);
-
-        // Aplica a translação
         rotated.x -= transform.translateX;
         rotated.y += transform.translateY;
         rotated.z += transform.translateZ;
-
-
         return rotated;
       });
 
-      
-
       if (isFaceVisible(transformedFace, VRP)) {
-        // quando for flatshading
         const averageDepth = calculateAverageDepth(transformedFace);
         const color = calculateFlatShading(transformedFace, light, object3D.material);
         facesWithDepth.push({ transformedFace, averageDepth, color });
-        // quando for gouraudshading
-        // visibleFaces.push(transformedFace); // Adiciona a face visível à lista
       }
     });
   });
-
-  // quando for gouraudshading
-  //  visibleFaces.forEach(face => {
-  //   const vertexNormals = face.map(vertex => calculateVertexNormal(vertex, visibleFaces));
-  //   const vertexColors = face.map((vertex, i) => calculateVertexIntensity(vertex, vertexNormals[i], light, object3D.material));
-
-  //   // Adicionar cores aos vértices para interpolação
-  //   const transformedFaceWithColors = face.map((vertex, i) => ({
-  //       ...vertex,
-  //       color: vertexColors[i]
-  //   }));
-
-  //   const averageDepth = calculateAverageDepth(transformedFaceWithColors);
-  //   facesWithDepth.push({ transformedFace: transformedFaceWithColors, averageDepth });
-  // });
-
 
   facesWithDepth.forEach(({ transformedFace, color }) => {
     const screenCoordinates = transformedFace.map(rotated => {
@@ -509,23 +491,15 @@ function transformAndDraw(object3D) {
       var M = multiplyMatrix(Mjp, Mproj);
       M = multiplyMatrix(M, Msrusrc);
       M = multiplyMatrix4x1(M, newPoint);
-     
-      var viewObject = centerObject(M);
-    // quando for gouraudshading
-    //   return {
-    //     ...viewObject,
-    //     color: rotated.color // Adicionar cor interpolada
-    // };
-    // quando for flatshading
-      return viewObject;
+      return centerObject(M);
     });
-    // drawPolygon(screenCoordinates, color);
-     raster(screenCoordinates, color);
-    // rasterGouraud(screenCoordinates);
+    //drawPolygon(screenCoordinates, color);
+    raster(screenCoordinates, color);
   });
 
   paint();
 }
+
 
 function rasterGouraud(polygon) {
   polygon.sort((a, b) => a.screenY - b.screenY);
@@ -587,19 +561,19 @@ function rasterGouraud(polygon) {
 }
 
 
-function raster(face, color) {
-  face.sort((a, b) => a.screenY - b.screenY);
-  
-  const minY = Math.ceil(face[0].screenY);
-  const maxY = Math.floor(face[face.length - 1].screenY);
-  
+function raster(triangle, color) {
+  triangle.sort((a, b) => a.screenY - b.screenY);
+
+  const minY = Math.ceil(triangle[0].screenY);
+  const maxY = Math.floor(triangle[triangle.length - 1].screenY);
+
   for (let y = minY; y <= maxY; y++) {
     const intersections = [];
-  
-    for (let i = 0; i < face.length; i++) {
-      const start = face[i];
-      const end = face[(i + 1) % face.length];
-  
+
+    for (let i = 0; i < triangle.length; i++) {
+      const start = triangle[i];
+      const end = triangle[(i + 1) % triangle.length];
+
       if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
         const t = (y - start.screenY) / (end.screenY - start.screenY);
         const x = start.screenX + t * (end.screenX - start.screenX);
@@ -607,29 +581,74 @@ function raster(face, color) {
         intersections.push({ x, z });
       }
     }
-  
+
     intersections.sort((a, b) => a.x - b.x);
-  
+
     for (let i = 0; i < intersections.length; i += 2) {
       const xStart = Math.ceil(intersections[i].x);
       const zStart = intersections[i].z;
       const xEnd = Math.floor(intersections[i + 1].x);
       const zEnd = intersections[i + 1].z;
-  
+
+      const deltaX = xEnd - xStart;
+      const deltaZ = (zEnd - zStart) / deltaX;
+
+      let z = zStart;
+
       for (let x = xStart; x <= xEnd; x++) {
-        const t = (x - xStart) / (xEnd - xStart);
-        const z = zStart + t * (zEnd - zStart);
-  
         if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
           zBuffer[x][y] = z;
           colorBuffer[x][y] = { r: color.r, g: color.g, b: color.b };
         }
+        z += deltaZ;
       }
     }
   }
 }
 
+
+// function raster(face, color) {
+//   face.sort((a, b) => a.screenY - b.screenY);
   
+//   const minY = Math.ceil(face[0].screenY);
+//   const maxY = Math.floor(face[face.length - 1].screenY);
+  
+//   for (let y = minY; y <= maxY; y++) {
+//     const intersections = [];
+  
+//     for (let i = 0; i < face.length; i++) {
+//       const start = face[i];
+//       const end = face[(i + 1) % face.length];
+  
+//       if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
+//         const t = (y - start.screenY) / (end.screenY - start.screenY);
+//         const x = start.screenX + t * (end.screenX - start.screenX);
+//         const z = start.screenZ + t * (end.screenZ - start.screenZ);
+//         intersections.push({ x, z });
+//       }
+//     }
+  
+//     intersections.sort((a, b) => a.x - b.x);
+  
+//     for (let i = 0; i < intersections.length - 1; i += 2) {
+//       const xStart = Math.ceil(intersections[i].x);
+//       const zStart = intersections[i].z;
+//       const xEnd = Math.floor(intersections[i + 1].x);
+//       const zEnd = intersections[i + 1].z;
+  
+//       for (let x = xStart; x <= xEnd; x++) {
+//         const t = (x - xStart) / (xEnd - xStart);
+//         const z = zStart + t * (zEnd - zStart);
+  
+//         if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
+//           zBuffer[x][y] = z;
+//           colorBuffer[x][y] = { r: color.r, g: color.g, b: color.b };
+//         }
+//       }
+//     }
+//   }
+// }
+
 function paint() {
     // Atualizar o canvas com o color buffer
     const imageData = ctx.createImageData(Umax, Vmax);
@@ -670,6 +689,7 @@ function redrawCanvas() {
 
 function drawPolygon(coordinates, color) {
   if (coordinates.length < 2) return;
+
   ctx.beginPath();
   ctx.moveTo(coordinates[0].screenX, coordinates[0].screenY);
 
@@ -722,13 +742,24 @@ function createFaces(object3D, slices) {
         nextPoints[j + 1],
         currentPoints[j + 1]
       ];
+      // gouraud ou flat shading
+      const triangle1 = [face[0], face[1], face[2]];
+      const triangle2 = [face[0], face[2], face[3]];
+      
       if (!object3D.faces.has(i)) {
         object3D.faces.set(i, []);
       }
-      object3D.faces.get(i).push(face);
+      object3D.faces.get(i).push(triangle1, triangle2);
+
+      // wireframe
+      // if (!object3D.faces.has(i)) {
+      //   object3D.faces.set(i, []);
+      // }
+      // object3D.faces.get(i).push(face);
     }
   }
 }
+
 
 document.getElementById('3dButton').addEventListener('click', () => {
   const slices = parseInt(document.getElementById('slices').value);
