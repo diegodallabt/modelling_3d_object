@@ -128,7 +128,7 @@ function drawAxes() {
   ctx.beginPath();
   ctx.moveTo(0, canvas.height / 2);
   ctx.lineTo(canvas.width, canvas.height / 2);
-  ctx.strokeStyle = "#000000";
+  ctx.strokeStyle = "#272727";
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(canvas.width / 2, 0);
@@ -387,7 +387,7 @@ function sruSrc(VRP, vetorN, vetorY) {
 }
 
 // NOTE: Careful.
-function perspective() {
+function parallel() {
   return [
     [1, 0, 0, 0],
     [0, 1, 0, 0],
@@ -446,7 +446,7 @@ function calculateAverageDepth(face) {
 }
 
 const Msrusrc = sruSrc(VRP, vetorN, vetorY);
-const Mproj = perspective(Math.PI / 2, canvas.width / canvas.height, 1, 100);
+const Mproj = parallel();
 
 function transformAndDraw(object3D) {
   var Mjp = createMjp(Xmin, Xmax, Ymin, Ymax, Umin, Umax, Vmin, Vmax);
@@ -469,6 +469,7 @@ function transformAndDraw(object3D) {
         rotated.x -= transform.translateX;
         rotated.y += transform.translateY;
         rotated.z += transform.translateZ;
+
 
         return rotated;
       });
@@ -501,12 +502,14 @@ function transformAndDraw(object3D) {
   //   facesWithDepth.push({ transformedFace: transformedFaceWithColors, averageDepth });
   // });
 
+
   facesWithDepth.forEach(({ transformedFace, color }) => {
     const screenCoordinates = transformedFace.map(rotated => {
       const newPoint = [rotated.x, rotated.y, rotated.z, 1];
       var M = multiplyMatrix(Mjp, Mproj);
       M = multiplyMatrix(M, Msrusrc);
       M = multiplyMatrix4x1(M, newPoint);
+     
       var viewObject = centerObject(M);
     // quando for gouraudshading
     //   return {
@@ -516,12 +519,12 @@ function transformAndDraw(object3D) {
     // quando for flatshading
       return viewObject;
     });
-    drawPolygon(screenCoordinates, color);
-    // raster(screenCoordinates, color);
+    // drawPolygon(screenCoordinates, color);
+     raster(screenCoordinates, color);
     // rasterGouraud(screenCoordinates);
   });
 
-  // paint();
+  paint();
 }
 
 function rasterGouraud(polygon) {
@@ -585,47 +588,47 @@ function rasterGouraud(polygon) {
 
 
 function raster(face, color) {
-    face.sort((a, b) => a.screenY - b.screenY);
+  face.sort((a, b) => a.screenY - b.screenY);
   
-    const minY = Math.ceil(face[0].screenY);
-    const maxY = Math.floor(face[face.length - 1].screenY);
+  const minY = Math.ceil(face[0].screenY);
+  const maxY = Math.floor(face[face.length - 1].screenY);
   
-    for (let y = minY; y <= maxY; y++) {
-      // Encontrar pontos de interseção com a linha de varredura y
-      const intersections = [];
-      for (let i = 0; i < face.length; i++) {
-        const start = face[i];
-        const end = face[(i + 1) % face.length];
+  for (let y = minY; y <= maxY; y++) {
+    const intersections = [];
   
-        if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
-          const t = (y - start.screenY) / (end.screenY - start.screenY);
-          const x = start.screenX + t * (end.screenX - start.screenX);
-          const z = start.screenZ + t * (end.screenZ - start.screenZ);
-          intersections.push({ x, z });
-        }
+    for (let i = 0; i < face.length; i++) {
+      const start = face[i];
+      const end = face[(i + 1) % face.length];
+  
+      if ((start.screenY <= y && end.screenY > y) || (start.screenY > y && end.screenY <= y)) {
+        const t = (y - start.screenY) / (end.screenY - start.screenY);
+        const x = start.screenX + t * (end.screenX - start.screenX);
+        const z = start.screenZ + t * (end.screenZ - start.screenZ);
+        intersections.push({ x, z });
       }
+    }
   
-      intersections.sort((a, b) => a.x - b.x);
+    intersections.sort((a, b) => a.x - b.x);
   
-      // Preencher pixels entre as interseções
-      for (let i = 0; i < intersections.length; i += 2) {
-        const xStart = Math.ceil(intersections[i].x);
-        const zStart = intersections[i].z;
-        const xEnd = Math.floor(intersections[i + 1].x);
-        const zEnd = intersections[i + 1].z;
+    for (let i = 0; i < intersections.length; i += 2) {
+      const xStart = Math.ceil(intersections[i].x);
+      const zStart = intersections[i].z;
+      const xEnd = Math.floor(intersections[i + 1].x);
+      const zEnd = intersections[i + 1].z;
   
-        for (let x = xStart; x <= xEnd; x++) {
-          const t = (x - xStart) / (xEnd - xStart);
-          const z = zStart + t * (zEnd - zStart);
+      for (let x = xStart; x <= xEnd; x++) {
+        const t = (x - xStart) / (xEnd - xStart);
+        const z = zStart + t * (zEnd - zStart);
   
-          if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
-            zBuffer[x][y] = z;
-            colorBuffer[x][y] = { r: color.r, g: color.g, b: color.b };
-          }
+        if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
+          zBuffer[x][y] = z;
+          colorBuffer[x][y] = { r: color.r, g: color.g, b: color.b };
         }
       }
     }
   }
+}
+
   
 function paint() {
     // Atualizar o canvas com o color buffer
