@@ -461,6 +461,7 @@ function transformAndDraw(object3D) {
   const transform = object3D.transform;
 
   let facesWithDepth = [];
+  let visibleFaces = [];
 
   object3D.faces.forEach((faces, index) => {
     faces.forEach(face => {
@@ -474,11 +475,28 @@ function transformAndDraw(object3D) {
       });
 
       if (isFaceVisible(transformedFace, VRP)) {
-        const averageDepth = calculateAverageDepth(transformedFace);
-        const color = calculateFlatShading(transformedFace, light, object3D.material);
-        facesWithDepth.push({ transformedFace, averageDepth, color });
+        // const averageDepth = calculateAverageDepth(transformedFace);
+        // const color = calculateFlatShading(transformedFace, light, object3D.material);
+        // facesWithDepth.push({ transformedFace, averageDepth, color });
+
+        visibleFaces.push(transformedFace);
       }
     });
+  });
+
+   // quando for gouraudshading
+   visibleFaces.forEach(face => {
+    const vertexNormals = face.map(vertex => calculateVertexNormal(vertex, visibleFaces));
+    const vertexColors = face.map((vertex, i) => calculateVertexIntensity(vertex, vertexNormals[i], light, object3D.material));
+
+    // Adicionar cores aos vértices para interpolação
+    const transformedFaceWithColors = face.map((vertex, i) => ({
+        ...vertex,
+        color: vertexColors[i]
+    }));
+
+    const averageDepth = calculateAverageDepth(transformedFaceWithColors);
+    facesWithDepth.push({ transformedFace: transformedFaceWithColors, averageDepth });
   });
 
   facesWithDepth.forEach(({ transformedFace, color }) => {
@@ -487,10 +505,18 @@ function transformAndDraw(object3D) {
       var M = multiplyMatrix(Mjp, Mproj);
       M = multiplyMatrix(M, Msrusrc);
       M = multiplyMatrix4x1(M, newPoint);
-      return centerObject(M);
+      var viewObject = centerObject(M);
+      // quando for gouraudshading
+        return {
+          ...viewObject,
+          color: rotated.color // Adicionar cor interpolada
+      };
+    // quando for flatshading
+      // return centerObject(M);
     });
     //drawPolygon(screenCoordinates, color);
-    raster(screenCoordinates, color);
+    // raster(screenCoordinates, color);
+    rasterGouraud(screenCoordinates);
   });
 
   paint();
