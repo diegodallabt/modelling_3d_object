@@ -81,6 +81,10 @@ window.addEventListener('DOMContentLoaded', function () {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawAxes();
   toggleControls(false);
+
+  this.document.getElementById('vrpX').value = VRP.x;
+  this.document.getElementById('vrpY').value = VRP.y;
+  this.document.getElementById('vrpZ').value = VRP.z;
 });
 
 document.getElementById('shading').addEventListener('change', function (event) {
@@ -99,6 +103,19 @@ function toggleControls(enable) {
   });
 }
 
+document.getElementById('vrpX').addEventListener('input', updateVRP);
+document.getElementById('vrpY').addEventListener('input', updateVRP);
+document.getElementById('vrpZ').addEventListener('input', updateVRP);
+
+function updateVRP() {
+  VRP.x = parseInt(document.getElementById('vrpX').value) || 0;
+  VRP.y = parseInt(document.getElementById('vrpY').value) || 0;
+  VRP.z = parseInt(document.getElementById('vrpZ').value) || 0;
+
+  Msrusrc = sruSrc(VRP, vetorN, vetorY);
+
+  redrawCanvas(); // Redesenha a cena
+}
 function updateObjectSelector() {
   const selector = document.getElementById('objectSelector');
   selector.innerHTML = '';
@@ -539,7 +556,7 @@ function calculateAverageDepth(face) {
   return sumZ / face.length;
 }
 
-const Msrusrc = sruSrc(VRP, vetorN, vetorY);
+let Msrusrc = sruSrc(VRP, vetorN, vetorY);
 const Mproj = perspective();
 
 function transformAndDraw(object3D) {
