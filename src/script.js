@@ -33,8 +33,8 @@ let colorBuffer = new Array(Umax)
   .map(() => new Array(Vmax).fill({ r: 255, g: 255, b: 255 }));
 
 let light = {
-  position: { x: 0, y: 0, z: 600 },
-  intensity: { r: 30, g: 100, b: 50 },
+  position: { x: 0, y: 0, z: 100 },
+  intensity: { r: 50, g: 100, b: 50 },
 };
 
 let objects3D = [
@@ -67,7 +67,7 @@ let objects3D = [
     },
   },
 ];
-let selectedShading = 'gouraud';
+let selectedShading = 'phong';
 let selectedObjectId = 0;
 
 initializeNewObject3D();
@@ -182,7 +182,7 @@ function initializeNewObject3D() {
       Ka: { r: 0.1, g: 0.1, b: 0.1 },
       Kd: { r: 0.7, g: 0.7, b: 0.7 },
       Ks: { r: 0.5, g: 0.5, b: 0.5 },
-      shininess: 10,
+      shininess: 100,
     },
   };
   objects3D.push(newObject3D);
@@ -596,7 +596,7 @@ function transformAndDraw(object3D) {
 
   // quando for gouraudshading
   visibleFaces.forEach((face) => {
-    if (selectedShading === 'gouraud') {
+    if (selectedShading === 'gouraud' || selectedShading === 'phong') {
       const vertexNormals = face.map((vertex) =>
         calculateVertexNormal(vertex, visibleFaces)
       );
@@ -635,7 +635,12 @@ function transformAndDraw(object3D) {
       M = multiplyMatrix4x1(M, newPoint);
       var viewObject = centerObject(M);
 
-      if (selectedShading === 'gouraud') {
+      if (selectedShading === 'phong') {
+        return {
+          ...viewObject,
+          normal: calculateVertexNormal(rotated, visibleFaces), // Adicionar normal calculada
+        };
+      } else if (selectedShading === 'gouraud') {
         return {
           ...viewObject,
           color: rotated.color, // Adicionar cor interpolada
@@ -645,11 +650,89 @@ function transformAndDraw(object3D) {
       }
     });
 
-    if (selectedShading === 'gouraud') rasterGouraud(screenCoordinates);
+    if (selectedShading === 'phong')
+      rasterPhong(screenCoordinates, light, object3D.material);
+    else if (selectedShading === 'gouraud') rasterGouraud(screenCoordinates);
     else raster(screenCoordinates, color);
   });
 
   paint();
+}
+
+function rasterPhong(polygon, light, material) {
+  polygon.sort((a, b) => a.screenY - b.screenY);
+
+  const minY = Math.ceil(polygon[0].screenY);
+  const maxY = Math.floor(polygon[polygon.length - 1].screenY);
+
+  for (let y = minY; y <= maxY; y++) {
+    const intersections = [];
+
+    for (let i = 0; i < polygon.length; i++) {
+      const start = polygon[i];
+      const end = polygon[(i + 1) % polygon.length];
+
+      if (
+        (start.screenY <= y && end.screenY > y) ||
+        (start.screenY > y && end.screenY <= y)
+      ) {
+        const t = (y - start.screenY) / (end.screenY - start.screenY);
+        const x = start.screenX + t * (end.screenX - start.screenX);
+        const z = start.screenZ + t * (end.screenZ - start.screenZ);
+
+        // Interpolação das normais dos vértices
+        const normalX = start.normal.x + t * (end.normal.x - start.normal.x);
+        const normalY = start.normal.y + t * (end.normal.y - start.normal.y);
+        const normalZ = start.normal.z + t * (end.normal.z - start.normal.z);
+
+        intersections.push({
+          x,
+          z,
+          normal: { x: normalX, y: normalY, z: normalZ },
+        });
+      }
+    }
+
+    intersections.sort((a, b) => a.x - b.x);
+
+    for (let i = 0; i < intersections.length; i += 2) {
+      const xStart = Math.ceil(intersections[i].x);
+      const zStart = intersections[i].z;
+      const normalStart = intersections[i].normal;
+      const xEnd = Math.floor(intersections[i + 1].x);
+      const zEnd = intersections[i + 1].z;
+      const normalEnd = intersections[i + 1].normal;
+
+      const deltaX = xEnd - xStart;
+      const deltaZ = (zEnd - zStart) / deltaX;
+
+      // Interpolação incremental das normais
+      const deltaNormalX = (normalEnd.x - normalStart.x) / deltaX;
+      const deltaNormalY = (normalEnd.y - normalStart.y) / deltaX;
+      const deltaNormalZ = (normalEnd.z - normalStart.z) / deltaX;
+
+      let z = zStart;
+      let normal = { ...normalStart }; // Copia o objeto para evitar modificação do original
+
+      for (let x = xStart; x <= xEnd; x++) {
+        if (x >= 0 && x < Umax && y >= 0 && y < Vmax && z < zBuffer[x][y]) {
+          zBuffer[x][y] = z;
+          // Calcula a intensidade do pixel usando a normal interpolada
+          const color = calculateVertexIntensity(
+            { x, y, z },
+            normal,
+            light,
+            material
+          );
+          colorBuffer[x][y] = color;
+        }
+        z += deltaZ;
+        normal.x += deltaNormalX;
+        normal.y += deltaNormalY;
+        normal.z += deltaNormalZ;
+      }
+    }
+  }
 }
 
 function rasterGouraud(polygon) {
