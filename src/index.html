@@ -1,71 +1,280 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Desenho 3D com WebGL</title>
+        <style>
+      body {
+        background-color: #2c2c2c;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: #fff;
+        margin: 0;
+      }
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Desenho 3D com WebGL</title>
-    <style>
-        body {
-            background-color: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+      canvas {
+        background-color: #fff;
+        border: 1px solid #272727;
+      }
+
+      .controls {
+        margin-left: 20px;
+      }
+
+      select {
+        width: 100px;
+        height: 30px;
+      }
+
+      button {
+        margin-top: 30px;
+        width: 100px;
+        height: 30px;
+        background-color: #414141;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #5c5c5c;
+      }
+
+      input[type='range'] {
+        margin: 5px;
+      }
+
+      input[type='number'] {
+        margin: 2px;
+        text-align: center;
+      }
+
+      .lbc-accordion-container {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .lbc-accordion {
+            width: 100%;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .lbc-accordion-header {
+            background-color: #414141;
+            padding: 10px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            position: relative;
             margin: 0;
+            display: block;
         }
         
-        canvas {
-            background-color: #fff;
-            border: 1px solid black;
+        .lbc-accordion-content {
+            display: none;
+            padding: 10px;
+            border: 1px solid #ccc;
         }
         
-        .controls {
-            margin-left: 20px;
+        .lbc-accordion-toggle:checked+.lbc-accordion-header+.lbc-accordion-content {
+            display: block;
+        }
+        
+        .lbc-icon {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            font-weight: bold;
+            margin-left: 10px;
         }
 
-        
+        .inputSize{
+            max-width:50px;
+        }
+
+        .flex{
+            display: flex;
+            justify-content: end;
+        }
+        .column{
+            flex-direction: column;
+        }
+        .row{
+            display: flex;
+            flex-direction: row;
+            justify-content: space-evenly;
+        }
     </style>
-</head>
+    </head>
 
-<body>
-    <canvas id="canvas" width="640" height="480"></canvas>
+    <body>
+        <canvas id="canvas" width="640" height="480"></canvas>
 
-    <div class="controls">
-        <label for="slices">Número de Fatias:</label>
-        <select id="slices">
-            <option value="4">4</option>
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="40">40</option>
-            <option value="80">80</option>
-            <option value="120">120</option>
-        </select>
-        <br>
-        <label for="translateX">Translação em X:</label>
-        <input type="number" id="translateX" min="-300" max="300" value="0" step="10">
-        <br>
-        <label for="translateY">Translação em Y:</label>
-        <input type="number" id="translateY" min="-300" max="300" value="0" step="10">
-        <br>
-        <label for="rotationY">Rotação em Y:</label>
-        <input type="range" id="rotationY" min="0" max="720" value="0" step="1">
-        <br>
-        <label for="rotationX">Rotação em X:</label>
-        <input type="range" id="rotationX" min="0" max="720" value="0" step="1">
-        <br>
-        <label for="scale">Escala:</label>
-        <input type="range" id="scale" min="0.1" max="2" value="1" step="0.1">
-        <br>
-        <label for="objectSelector">Objeto selecionado:</label>
-        <select id="objectSelector"></select>
-        <br><br>
-        <button id="3dButton">Gerar 3D</button>
-        <!-- <button id="3dCube">Gerar Cubo 3D Padrão</button> !-->
-        <button id="resetButton">Resetar</button>
-    </div>
+        <div class="controls">
+            <div class="lbc-accordion"><input
+                    class="lbc-accordion-toggle"
+                    id="lbc-accordion0" style="display: none;"
+                    type="checkbox" /> <label class="lbc-accordion-header"
+                    for="lbc-accordion0"> Transformações <span
+                        class="lbc-icon">+</span> </label>
+                <div class="lbc-accordion-content">
+                    <label for="translateX">Translação em X:</label>
+                    <input
+                        type="number"
+                        id="translateX"
+                        min="-300"
+                        max="300"
+                        value="0"
+                        step="10" />
+                    <br />
+                    <label for="translateY">Translação em Y:</label>
+                    <input
+                        type="number"
+                        id="translateY"
+                        min="-300"
+                        max="300"
+                        value="0"
+                        step="10" />
+                    <br />
+                    <label for="translateZ">Translação em Z:</label>
+                    <input
+                        type="number"
+                        id="translateZ"
+                        min="-300"
+                        max="300"
+                        value="0"
+                        step="10" />
+                    <br /><br />
+                    <label for="rotationY">Rotação em Y:</label>
+                    <input type="range" id="rotationY" min="0" max="720"
+                        value="0"
+                        step="1" />
+                    <br />
+                    <label for="rotationX">Rotação em X:</label>
+                    <input type="range" id="rotationX" min="0" max="720"
+                        value="0"
+                        step="1" />
+                    <br />
+                    <label for="rotationZ">Rotação em Z:</label>
+                    <input type="range" id="rotationZ" min="0" value="0"
+                        max="720"
+                        step="1" />
+                    <br /><br />
+                    <label for="scale">Escala:</label>
+                    <input type="range" id="scale" min="0.1" max="2" value="1"
+                        step="0.1" />
+                </div>
+            </div>
 
-    <script type="module" src="script.js"></script>
-</body>
+            <div class="lbc-accordion"><input
+                    class="lbc-accordion-toggle"
+                    id="lbc-accordion1" style="display: none;"
+                    type="checkbox" /> <label class="lbc-accordion-header"
+                    for="lbc-accordion1"> Viewport <span
+                        class="lbc-icon">+</span> </label>
+                <div class="lbc-accordion-content">
+                    <div class="flex column">
+                        <div class="item row">
+                            <label for="vrpX">VRP: X:</label>
+                            <input class="inputSize" type="number"
+                                id="vrpX"
+                                value="0" step="10">
 
+                            <label for="vrpY">Y:</label>
+                            <input class="inputSize" type="number"
+                                id="vrpY"
+                                value="0" step="10">
+
+                            <label for="vrpZ">Z:</label>
+                            <input class="inputSize" type="number"
+                                id="vrpZ"
+                                value="600" step="10"></div>
+                        <br>
+                        <div class="item row"><label
+                                for="Xmin">Xmin:</label>
+                            <input class="inputSize" type="number" id="Xmin"
+                                value="0"></div>
+
+                        <div class="item row"><label
+                                for="Xmax">Xmax:</label>
+                            <input class="inputSize" type="number" id="Xmax"
+                                value="400"></div>
+
+                        <div class="item row"><label
+                                for="Ymin">Ymin:</label>
+                            <input class="inputSize" type="number" id="Ymin"
+                                value="0"></div>
+
+                        <div class="item row"><label
+                                for="Ymax">Ymax:</label>
+                            <input class="inputSize" type="number" id="Ymax"
+                                value="400"></div>
+
+                        <div class="item row"><label
+                                for="Umin">Umin:</label>
+                            <input class="inputSize" type="number" id="Umin"
+                                value="0"></div>
+
+                        <div class="item row"><label
+                                for="Umax">Umax:</label>
+                            <input class="inputSize" type="number" id="Umax"
+                                value="0"></div>
+
+                        <div class="item row"><label
+                                for="Vmin">Vmin:</label>
+                            <input class="inputSize" type="number" id="Vmin"
+                                value="0"></div>
+
+                        <div class="item row"><label
+                                for="Vmax">Vmax:</label>
+                            <input class="inputSize" type="number" id="Vmax"
+                                value="0"></div>
+                        <br>
+                        <div class="item row"><label
+                                for="dp">dp:</label>
+                            <input class="inputSize" type="number" id="dp"
+                                value="600"></div>
+                    </div>
+                </div>
+            </div>
+            <label for="slices">Número de Fatias:</label>
+            <select id="slices">
+                <option value="4">4</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="40">40</option>
+                <option value="80">80</option>
+                <option value="120">120</option>
+            </select>
+            <br /><br />
+            <label for="projection">Projeção: </label>
+            <select id="projection">
+                <option value="perspective">Perspectiva</option>
+                <option value="orthographic">Paralela</option>
+            </select>
+            <br /><br />
+            <label for="objectSelector">Objeto selecionado:</label>
+            <select id="objectSelector"></select>
+            <br /><br />
+            <label for="shading">Sombreamento:</label>
+            <select id="shading">
+                <option value="gouraud">Gouraud</option>
+                <option value="flat">Flat</option>
+            </select>
+            <br />
+            <button id="3dButton">Gerar 3D</button>
+            <!-- <button id="3dCube">Gerar Cubo 3D Padrão</button> !-->
+            <button id="resetButton">Resetar</button>
+        </div>
+
+        <div class="controls">
+
+        </div>
+
+        <script type="module" src="script.js"></script>
+    </body>
 </html>
