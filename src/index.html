@@ -1,111 +1,135 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Desenho 3D com WebGL</title>
     <style>
-        body {
-            background-color: #2c2c2c;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #fff;
-            margin: 0;
-        }
-        
-        canvas {
-            background-color: #fff;
-            border: 1px solid #272727;
-        }
-        
-        .controls {
-            margin-left: 20px;
-        }
-        
-        select {
-            width: 100px;
-            height: 30px;
-        }
+      body {
+        background-color: #2c2c2c;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: #fff;
+        margin: 0;
+      }
 
-        button {
-            margin-top: 30px;
-            width: 100px;
-            height: 30px;
-            background-color: #414141;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
+      canvas {
+        background-color: #fff;
+        border: 1px solid #272727;
+      }
 
-        button:hover {
-            background-color: #5c5c5c;
-        }
-        
-        input[type="range"]{
-            margin: 5px;
-        }
+      .controls {
+        margin-left: 20px;
+      }
 
+      select {
+        width: 100px;
+        height: 30px;
+      }
 
-        input[type="number"]{
-            margin: 2px;
-            text-align: center;
-        }
+      button {
+        margin-top: 30px;
+        width: 100px;
+        height: 30px;
+        background-color: #414141;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #5c5c5c;
+      }
+
+      input[type='range'] {
+        margin: 5px;
+      }
+
+      input[type='number'] {
+        margin: 2px;
+        text-align: center;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <canvas id="canvas" width="640" height="480"></canvas>
 
     <div class="controls">
-        <label for="slices">Número de Fatias:</label>
-        <select id="slices">
-            <option value="4">4</option>
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="40">40</option>
-            <option value="80">80</option>
-            <option value="120">120</option>
-        </select>
-        <br><br>
-        <label for="translateX">Translação em X:</label>
-        <input type="number" id="translateX" min="-300" max="300" value="0" step="10">
-        <br>
-        <label for="translateY">Translação em Y:</label>
-        <input type="number" id="translateY" min="-300" max="300" value="0" step="10">
-        <br>
-        <label for="translateZ">Translação em Z:</label>
-        <input type="number" id="translateZ" min="-300" max="300" value="0" step="10">
-        <br><br>
-        <label for="rotationY">Rotação em Y:</label>
-        <input type="range" id="rotationY" min="0" max="720" value="0" step="1">
-        <br>
-        <label for="rotationX">Rotação em X:</label>
-        <input type="range" id="rotationX" min="0" max="720" value="0" step="1">
-        <br>
-        <label for="rotationZ">Rotação em Z:</label>
-        <input type="range" id="rotationZ" min="0" value="0" max="720" step="1">
-        <br><br>
-        <label for="projection">Projeção: </label>
-        <select id="projection">
-            <option value="perspective">Perspectiva</option>
-            <option value="orthographic">Paralela</option>
-        </select>
-        <br><br>
-        <label for="scale">Escala:</label>
-        <input type="range" id="scale" min="0.1" max="2" value="1" step="0.1">
-        <br>
-        <label for="objectSelector">Objeto selecionado:</label>
-        <select id="objectSelector"></select>
-        <br><br>
-        <button id="3dButton">Gerar 3D</button>
-        <!-- <button id="3dCube">Gerar Cubo 3D Padrão</button> !-->
-        <button id="resetButton">Resetar</button>
+      <label for="slices">Número de Fatias:</label>
+      <select id="slices">
+        <option value="4">4</option>
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="40">40</option>
+        <option value="80">80</option>
+        <option value="120">120</option>
+      </select>
+      <br /><br />
+      <label for="translateX">Translação em X:</label>
+      <input
+        type="number"
+        id="translateX"
+        min="-300"
+        max="300"
+        value="0"
+        step="10"
+      />
+      <br />
+      <label for="translateY">Translação em Y:</label>
+      <input
+        type="number"
+        id="translateY"
+        min="-300"
+        max="300"
+        value="0"
+        step="10"
+      />
+      <br />
+      <label for="translateZ">Translação em Z:</label>
+      <input
+        type="number"
+        id="translateZ"
+        min="-300"
+        max="300"
+        value="0"
+        step="10"
+      />
+      <br /><br />
+      <label for="rotationY">Rotação em Y:</label>
+      <input type="range" id="rotationY" min="0" max="720" value="0" step="1" />
+      <br />
+      <label for="rotationX">Rotação em X:</label>
+      <input type="range" id="rotationX" min="0" max="720" value="0" step="1" />
+      <br />
+      <label for="rotationZ">Rotação em Z:</label>
+      <input type="range" id="rotationZ" min="0" value="0" max="720" step="1" />
+      <br /><br />
+      <label for="projection">Projeção: </label>
+      <select id="projection">
+        <option value="perspective">Perspectiva</option>
+        <option value="orthographic">Paralela</option>
+      </select>
+      <br /><br />
+      <label for="scale">Escala:</label>
+      <input type="range" id="scale" min="0.1" max="2" value="1" step="0.1" />
+      <br />
+      <label for="objectSelector">Objeto selecionado:</label>
+      <select id="objectSelector"></select>
+      <br /><br />
+      <label for="shading">Sombreamento:</label>
+      <select id="shading">
+        <option value="gouraud">Gouraud</option>
+        <option value="flat">Flat</option>
+      </select>
+      <br /><br />
+      <button id="3dButton">Gerar 3D</button>
+      <!-- <button id="3dCube">Gerar Cubo 3D Padrão</button> !-->
+      <button id="resetButton">Resetar</button>
     </div>
 
     <script type="module" src="script.js"></script>
-</body>
-
+  </body>
 </html>

@@ -67,7 +67,7 @@ let objects3D = [
     },
   },
 ];
-
+let selectedShading = 'gouraud';
 let selectedObjectId = 0;
 
 initializeNewObject3D();
@@ -81,6 +81,11 @@ window.addEventListener('DOMContentLoaded', function () {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawAxes();
   toggleControls(false);
+});
+
+document.getElementById('shading').addEventListener('change', function (event) {
+  selectedShading = event.target.value;
+  redrawCanvas();
 });
 
 const controls = document.querySelectorAll(
@@ -574,29 +579,35 @@ function transformAndDraw(object3D) {
 
   // quando for gouraudshading
   visibleFaces.forEach((face) => {
-    const vertexNormals = face.map((vertex) =>
-      calculateVertexNormal(vertex, visibleFaces)
-    );
-    const vertexColors = face.map((vertex, i) =>
-      calculateVertexIntensity(
-        vertex,
-        vertexNormals[i],
-        light,
-        object3D.material
-      )
-    );
+    if (selectedShading === 'gouraud') {
+      const vertexNormals = face.map((vertex) =>
+        calculateVertexNormal(vertex, visibleFaces)
+      );
+      const vertexColors = face.map((vertex, i) =>
+        calculateVertexIntensity(
+          vertex,
+          vertexNormals[i],
+          light,
+          object3D.material
+        )
+      );
 
-    // Adicionar cores aos vértices para interpolação
-    const transformedFaceWithColors = face.map((vertex, i) => ({
-      ...vertex,
-      color: vertexColors[i],
-    }));
+      // Adicionar cores aos vértices para interpolação
+      const transformedFaceWithColors = face.map((vertex, i) => ({
+        ...vertex,
+        color: vertexColors[i],
+      }));
 
-    const averageDepth = calculateAverageDepth(transformedFaceWithColors);
-    facesWithDepth.push({
-      transformedFace: transformedFaceWithColors,
-      averageDepth,
-    });
+      const averageDepth = calculateAverageDepth(transformedFaceWithColors);
+      facesWithDepth.push({
+        transformedFace: transformedFaceWithColors,
+        averageDepth,
+      });
+    } else {
+      const averageDepth = calculateAverageDepth(face);
+      const color = calculateFlatShading(face, light, object3D.material);
+      facesWithDepth.push({ transformedFace: face, averageDepth, color });
+    }
   });
 
   facesWithDepth.forEach(({ transformedFace, color }) => {
@@ -606,17 +617,19 @@ function transformAndDraw(object3D) {
       M = multiplyMatrix(M, Msrusrc);
       M = multiplyMatrix4x1(M, newPoint);
       var viewObject = centerObject(M);
-      // quando for gouraudshading
-      return {
-        ...viewObject,
-        color: rotated.color, // Adicionar cor interpolada
-      };
-      // quando for flatshading
-      // return centerObject(M);
+
+      if (selectedShading === 'gouraud') {
+        return {
+          ...viewObject,
+          color: rotated.color, // Adicionar cor interpolada
+        };
+      } else {
+        return centerObject(M);
+      }
     });
-    //drawPolygon(screenCoordinates, color);
-    // raster(screenCoordinates, color);
-    rasterGouraud(screenCoordinates);
+
+    if (selectedShading === 'gouraud') rasterGouraud(screenCoordinates);
+    else raster(screenCoordinates, color);
   });
 
   paint();
