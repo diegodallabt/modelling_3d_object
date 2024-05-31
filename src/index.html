@@ -3,7 +3,13 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Desenho 3D com WebGL</title>
+        <title>Modelagem de objetos 3D</title>
+        <meta name="description"
+            content="A modelagem de objetos deverá ser realizada pela técnica de revolução, onde um perfil
+        bidimensional é rotacionado em 360º ao redor de um dos eixos principais para construir
+        um objeto tridimensional.">
+        <link rel="shortcut icon"
+            href="https://cdn.unioeste.br/images/unioeste_icone.png">
         <style>
       body {
         background-color: #2c2c2c;
@@ -13,6 +19,7 @@
         height: 100vh;
         color: #fff;
         margin: 0;
+        font-family:  Arial, sans-serif;
       }
 
       canvas {
@@ -124,6 +131,7 @@
                 <div class="lbc-accordion-content">
                     <label for="translateX">Translação em X:</label>
                     <input
+                        class="inputSize"
                         type="number"
                         id="translateX"
                         value="0"
@@ -131,6 +139,7 @@
                     <br />
                     <label for="translateY">Translação em Y:</label>
                     <input
+                        class="inputSize"
                         type="number"
                         id="translateY"
                         value="0"
@@ -138,6 +147,7 @@
                     <br />
                     <label for="translateZ">Translação em Z:</label>
                     <input
+                        class="inputSize"
                         type="number"
                         id="translateZ"
                         value="0"
@@ -172,6 +182,22 @@
                         class="lbc-icon">+</span> </label>
                 <div class="lbc-accordion-content">
                     <div class="flex column">
+                        <div class="item row">
+                            <label for="focalX">Focal Point: X:</label>
+                            <input class="inputSize" type="number"
+                                id="focalX"
+                                value="0">
+
+                            <label for="focalY">Y:</label>
+                            <input class="inputSize" type="number"
+                                id="focalY"
+                                value="0">
+
+                            <label for="focalZ">Z:</label>
+                            <input class="inputSize" type="number"
+                                id="focalZ"
+                                value="0"></div>
+                        <br>
                         <div class="item row">
                             <label for="vrpX">VRP: X:</label>
                             <input class="inputSize" type="number"
@@ -235,6 +261,118 @@
                     </div>
                 </div>
             </div>
+
+            <div class="lbc-accordion"><input
+                    class="lbc-accordion-toggle"
+                    id="lbc-accordion2" style="display: none;"
+                    type="checkbox" /> <label class="lbc-accordion-header"
+                    for="lbc-accordion2"> Material <span
+                        class="lbc-icon">+</span> </label>
+                <div class="lbc-accordion-content">
+                    <div class="flex column">
+                        <div class="item row">
+                            <label for="KaR">KaR:</label>
+                            <input class="inputSize" type="number"
+                                id="KaR" min="0" max="1"
+                                value="0.1">
+                            <label for="KaG">KaG:</label>
+                            <input class="inputSize" type="number"
+                                id="KaG" min="0" max="1"
+                                value="0.1">
+                            <label for="KaB">KaB:</label>
+                            <input class="inputSize" type="number"
+                                id="KaB" min="0" max="1"
+                                value="0.1">
+                        </div>
+                        <div class="item row">
+                            <label for="KdR">KdR:</label>
+                            <input class="inputSize" type="number"
+                                id="KdR" min="0" max="1"
+                                value="0.7">
+                            <label for="KdG">KdG:</label>
+                            <input class="inputSize" type="number"
+                                id="KdG" min="0" max="1"
+                                value="0.7">
+                            <label for="KdB">KdB:</label>
+                            <input class="inputSize" type="number"
+                                id="KdB" min="0" max="1"
+                                value="0.7">
+                        </div>
+                        <div class="item row">
+                            <label for="KsR">KsR:</label>
+                            <input class="inputSize" type="number"
+                                id="KsR" min="0" max="1"
+                                value="0.5">
+                            <label for="KsG">KsG:</label>
+                            <input class="inputSize" type="number"
+                                id="KsG" min="0" max="1"
+                                value="0.5">
+                            <label for="KsB">KsB:</label>
+                            <input class="inputSize" type="number"
+                                id="KsB" min="0" max="1"
+                                value="0.5">
+                        </div>
+                        <br>
+                        <div class="item row">
+                            <label for="shininess">Brilho:</label>
+                            <input class="inputSize" type="number"
+                                id="shininess"
+                                value="3.5"
+                                min="0"
+                                step="0.5">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lbc-accordion"><input
+                    class="lbc-accordion-toggle"
+                    id="lbc-accordion3" style="display: none;"
+                    type="checkbox" /> <label class="lbc-accordion-header"
+                    for="lbc-accordion3"> Luz <span
+                        class="lbc-icon">+</span> </label>
+                <div class="lbc-accordion-content">
+                    <span>Posição da Luz:</span>
+                    <div class="item row">
+                        <label for="luzX">X:</label>
+                        <input class="inputSize" type="number"
+                            id="luzX"
+                            value="0" step="10">
+
+                        <label for="luzY">Y:</label>
+                        <input class="inputSize" type="number"
+                            id="luzY"
+                            value="0" step="10">
+
+                        <label for="luzZ">Z:</label>
+                        <input class="inputSize" type="number"
+                            id="luzZ"
+                            value="900" step="10">
+                    </div>
+                    <br>
+                    <span>Intensidade da Luz:</span>
+                    <div class="item row">
+                        <label for="luzIntensR">R:</label>
+                        <input class="inputSize" type="number"
+                            id="luzIntensR"
+                            value="30" step="5"
+                            min="0" max="255">
+
+                        <label for="luzIntensG">G:</label>
+                        <input class="inputSize" type="number"
+                            id="luzIntensG"
+                            value="40" step="5"
+                            min="0" max="255">
+
+                        <label for="luzIntensB">B:</label>
+                        <input class="inputSize" type="number"
+                            id="luzIntensB"
+                            value="240" step="5"
+                            min="0" max="255">
+                    </div>
+                </div>
+            </div>
+
             <label for="slices">Número de Fatias:</label>
             <select id="slices">
                 <option value="4">4</option>
@@ -256,19 +394,15 @@
             <br /><br />
             <label for="shading">Sombreamento:</label>
             <select id="shading">
-                <option value="gouraud">Gouraud</option>
+                <option value="wireframe">Wireframe</option>
                 <option value="flat">Flat</option>
+                <option value="gouraud">Gouraud</option>
+                <option value="phong">Phong</option>
             </select>
             <br />
             <button id="3dButton">Gerar 3D</button>
-            <!-- <button id="3dCube">Gerar Cubo 3D Padrão</button> !-->
             <button id="resetButton">Resetar</button>
         </div>
-
-        <div class="controls">
-
-        </div>
-
-        <script type="module" src="script.js"></script>
+        <script type="module" src="main.js"></script>
     </body>
 </html>
