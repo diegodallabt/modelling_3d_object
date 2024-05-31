@@ -25,10 +25,10 @@ document.getElementById('Umax').value = Umax;
 document.getElementById('Vmax').value = Vmax;
 document.getElementById('dp').value = dp;
 
-let canvasWidth = Umax;
-let canvasHeight = Vmax;
-canvas.width = Umax;
-canvas.height = Vmax;
+let canvasWidth = Xmax;
+let canvasHeight = Ymax;
+canvas.width = Xmax;
+canvas.height = Ymax;
 
 let rotationX = 0;
 let rotationY = 0;
@@ -131,7 +131,7 @@ function updateVariables() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawAxes();
-  toggleControls(false);
+  //toggleControls(false);
 }
 
 document.getElementById('shading').addEventListener('change', function (event) {
@@ -369,6 +369,8 @@ function drawPoint(x, y) {
 
 document.getElementById('resetButton').addEventListener('click', resetCanvas);
 function resetCanvas() {
+// canvas.width = Xmax;
+// canvas.height = Ymax;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawAxes();
 
