@@ -3,8 +3,6 @@ Desenvolvimento utilizando Javascript, HTML e CSS.
 
 ## Funcionalidades
 - Modelagem do objeto
-> 
-e
 - Projeção
 - Transformações Geométricas
 - ZBuffer
@@ -12,6 +10,3 @@ e
 - Sombreamento Constante
 - Sombreamento Gouraud
 - Sombreamento Phong
-
-## Entrega
-O trabalho deve ser entregue até o dia 31/05.
